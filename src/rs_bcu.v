@@ -184,6 +184,18 @@ module bcu(
     output reg [31:0] value         // next PC value (pc_target or pc_fallthrough)
 );
 
+wire take_branch;
+
+// Combinational logic for branch evaluation
+assign take_branch =
+    (op == 3'b000) ? (rs1 == rs2) :              // BEQ
+    (op == 3'b001) ? (rs1 != rs2) :              // BNE
+    (op == 3'b100) ? ($signed(rs1) < $signed(rs2)) :   // BLT
+    (op == 3'b101) ? ($signed(rs1) >= $signed(rs2)) :  // BGE
+    (op == 3'b110) ? (rs1 < rs2) :               // BLTU
+    (op == 3'b111) ? (rs1 >= rs2) :              // BGEU
+    1'b0;  // Default case
+
 always @(posedge clk_in) begin
     // if destination is 0, the output is invalid
     if (dest == 0) begin
@@ -191,28 +203,6 @@ always @(posedge clk_in) begin
         taken  <= 0;
         value  <= 0;
     end else begin
-        // Temporary variable to hold branch decision
-        reg take_branch;
-
-        // Check the opcode to determine the type of branch
-        case (op)
-            3'b000: // BEQ: Branch if Equal
-                take_branch = (rs1 == rs2);
-            3'b001: // BNE: Branch if Not Equal
-                take_branch = (rs1 != rs2);
-            3'b100: // BLT: Branch if Less Than (signed)
-                take_branch = ($signed(rs1) < $signed(rs2));
-            3'b101: // BGE: Branch if Greater Equal (signed)
-                take_branch = ($signed(rs1) >= $signed(rs2));
-            3'b110: // BLTU: Branch if Less Than (unsigned)
-                take_branch = (rs1 < rs2);
-            3'b111: // BGEU: Branch if Greater Equal (unsigned)
-                take_branch = (rs1 >= rs2);
-            default:
-                $fatal("Invalid branch operation: %b", op);
-        endcase
-
-        // Update `taken` and `value` based on the branch decision
         taken <= take_branch;
         value <= (take_branch ? pc_target : pc_fallthrough);
 
