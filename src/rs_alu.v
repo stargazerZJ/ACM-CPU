@@ -23,8 +23,8 @@ module reservation_station_alu(
     input wire flush_input, // flush signal. a flush signal is received on the first cycle, serving as RST
 
     // Output to Decoder
-    output reg has_no_vacancy, // whether the station is full at the end of the cycle
-    output reg has_one_vacancy, // whether the station has only one vacancy at the end of the cycle
+    output wire has_no_vacancy, // whether the station is full at the end of the cycle
+    output wire has_one_vacancy, // whether the station has only one vacancy at the end of the cycle
 
     // Output to ALU
     output reg [3:0] alu_op,
@@ -48,8 +48,6 @@ wire [3:0] vacant_index;
 wire has_vacant;
 wire [3:0] ready_index;
 wire has_ready;
-wire comb_has_no_vacancy;
-wire comb_has_one_vacancy;
 
 find_first_vacant vacant_finder(
     .busy(busy),
@@ -67,8 +65,8 @@ find_first_ready ready_finder(
 
 count_vacancies vacancy_counter(
     .busy(busy),
-    .has_no_vacancy(comb_has_no_vacancy),
-    .has_one_vacancy(comb_has_one_vacancy)
+    .has_no_vacancy(has_no_vacancy),
+    .has_one_vacancy(has_one_vacancy)
 );
 
 // Wire up the input values with CDB updates
@@ -146,9 +144,6 @@ always @(posedge clk_in) begin
             alu_dest <= 0;
         end
     end
-    // Update vacancy flags
-    has_no_vacancy <= comb_has_no_vacancy;
-    has_one_vacancy <= comb_has_one_vacancy;
 end
 
 endmodule
