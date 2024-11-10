@@ -1,3 +1,25 @@
+// Helper module to update from CDB
+module update_from_CDB (
+    input [31:0] current_V,
+    input [`ROB_RANGE] current_Q,
+    input [31:0] cdb_alu_value,
+    input [`ROB_RANGE] cdb_alu_rob_id,
+    input [31:0] cdb_mem_value,
+    input [`ROB_RANGE] cdb_mem_rob_id,
+    output [31:0] updated_V,
+    output [`ROB_RANGE] updated_Q
+);
+
+    // Determine the new value based on CDB inputs
+    assign updated_V = (current_Q == cdb_alu_rob_id) ? cdb_alu_value :
+                       (current_Q == cdb_mem_rob_id) ? cdb_mem_value : current_V;
+
+    // Update the tag if the data is already available
+    assign updated_Q = (current_Q == cdb_alu_rob_id || current_Q == cdb_mem_rob_id) ? 0 : current_Q;
+
+endmodule
+
+
 // Helper module to find first vacant slot
 module find_first_vacant(
     input wire [15:0] busy,
