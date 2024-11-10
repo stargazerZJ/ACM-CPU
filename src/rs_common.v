@@ -29,25 +29,11 @@ module find_first_vacant(
     assign vacant_index = result;
 endmodule
 
-// Helper module to find first ready-to-issue entry
-module find_first_ready(
-    input wire [15:0] busy,
-    input wire [`ROB_RANGE] Qj_entries [15:0],
-    input wire [`ROB_RANGE] Qk_entries [15:0],
+module __find_first_ready(
+    input wire [15:0] ready,
     output wire [3:0] ready_index,
     output wire has_ready
 );
-    wire [15:0] ready;
-    integer i;
-
-    // Generate ready signal for each entry
-    genvar g;
-    generate
-        for (g = 0; g < 16; g = g + 1) begin : ready_gen
-            assign ready[g] = busy[g] && (Qj_entries[g] == 0) && (Qk_entries[g] == 0);
-        end
-    endgenerate
-
     // Priority encoder for ready entries
     wire [3:0] result;
     assign has_ready = |ready; // OR reduction - true if any entry is ready
@@ -73,6 +59,33 @@ module find_first_ready(
     assign ready_index = result;
 endmodule
 
+// Helper module to find first ready-to-issue entry
+module find_first_ready(
+    input wire [15:0] busy,
+    input wire [`ROB_RANGE] Qj_entries [15:0],
+    input wire [`ROB_RANGE] Qk_entries [15:0],
+    output wire [3:0] ready_index,
+    output wire has_ready
+);
+    wire [15:0] ready;
+
+    // Generate ready signal for each entry
+    genvar g;
+    generate
+        for (g = 0; g < 16; g = g + 1) begin : ready_gen
+            assign ready[g] = busy[g] && (Qj_entries[g] == 0) && (Qk_entries[g] == 0);
+        end
+    endgenerate
+
+    // Find first ready entry
+    __find_first_ready find_ready(
+        .ready(ready),
+        .ready_index(ready_index),
+        .has_ready(has_ready)
+    );
+endmodule
+
+
 // Helper module to count vacancies
 module count_vacancies(
     input wire [15:0] busy,
@@ -86,4 +99,77 @@ module count_vacancies(
 
     assign has_no_vacancy = (count == 0);
     assign has_one_vacancy = (count == 1);
+endmodule
+
+// Helper module to find first ready load entry
+module find_first_ready_load(
+    input wire [`RS_ARR] busy,
+    input wire [`ROB_RANGE] Qj_entries[`RS_ARR],
+    input wire [`ROB_RANGE] Ql_entries[`RS_ARR],
+    output wire [3:0] ready_index,
+    output wire has_ready
+);
+    wire [15:0] ready;
+
+    // Generate ready signal for each entry
+    genvar g;
+    generate
+        for (g = 0; g < 16; g = g + 1) begin : ready_gen
+            assign ready[g] = busy[g] && (Qj_entries[g] == 0) && (Ql_entries[g] == 0);
+        end
+    endgenerate
+
+    // Find first ready entry
+    __find_first_ready find_ready(
+        .ready(ready),
+        .ready_index(ready_index),
+        .has_ready(has_ready)
+    );
+endmodule
+
+// Helper module to find first ready store entry
+module find_first_ready_store(
+    input wire [`RS_ARR] busy,
+    input wire [`ROB_RANGE] Qj_entries[`RS_ARR],
+    input wire [`ROB_RANGE] Qk_entries[`RS_ARR],
+    input wire [`ROB_RANGE] Ql_entries[`RS_ARR],
+    input wire [`ROB_RANGE] Qm_entries[`RS_ARR],
+    input wire [`RS_ARR] load_busy,
+    input wire [`ROB_RANGE] load_Ql_entries[`RS_ARR],
+    output wire [3:0] ready_index,
+    output wire has_ready
+);
+    wire [15:0] ready;
+    wire [15:0] load_ready;
+
+    // Generate ready signal for each entry
+    genvar g;
+    generate
+        for (g = 0; g < 16; g = g + 1) begin : ready_gen
+            assign ready[g] = busy[g] && (Qj_entries[g] == 0) && (Qk_entries[g] == 0) && (Ql_entries[g] == 0) && (Qm_entries[g] == 0);
+        end
+    endgenerate
+
+    wire ready_index;
+    wire store_has_ready;
+
+    // Generate ready signal for load entries
+    // If there is a load instruction whose store depenency has been resolved
+    // this instruction must be issued before any store instruction
+    generate
+        for (g = 0; g < 16; g = g + 1) begin : load_ready_gen
+            assign load_ready[g] = load_busy[g] && (load_Ql_entries[g] == 0);
+        end
+    endgenerate
+    assign can_store = ~(|load_ready);
+
+    // Find first ready entry
+    __find_first_ready find_ready(
+        .ready(ready),
+        .ready_index(ready_index),
+        .has_ready(store_has_ready)
+    );
+
+    assign has_ready = store_has_ready && can_store;
+
 endmodule

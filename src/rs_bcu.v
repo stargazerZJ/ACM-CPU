@@ -1,6 +1,6 @@
 `include "const_def.v"
 
-module reservation_station(
+module reservation_station_bcu(
     input wire clk_in, // system clock signal
 
     // Operation input
