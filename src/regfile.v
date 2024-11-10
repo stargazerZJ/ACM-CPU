@@ -41,12 +41,12 @@ always @(posedge clk_in) begin
         end
     end else begin
         // Handle Decoder updates
-        if (from_decoder_write_enabled) begin
+        if (from_decoder_write_enabled && from_decoder_reg_id != 0) begin
             register_rob_id[from_decoder_reg_id] <= from_decoder_rob_id;
         end
 
         // Handle ROB updates
-        if (from_rob_write_enabled) begin
+        if (from_rob_write_enabled && from_rob_reg_id != 0) begin
             register_data[from_rob_reg_id] <= from_rob_data;
             // Only update if Decoder is not simultaneously writing to the same register
             if (!from_decoder_write_enabled || from_rob_reg_id != from_decoder_reg_id) begin
@@ -59,10 +59,12 @@ always @(posedge clk_in) begin
 end
 
 always @(*) begin
-    for (i = 0; i < 32; i = i + 1) begin
+    for (i = 1; i < 32; i = i + 1) begin
         to_decoder_data[i] = register_data[i];
         to_decoder_rob_id[i] = register_rob_id[i];
     end
+    to_decoder_data[0] = 32'b0;
+    to_decoder_rob_id[0] = 0;
 end
 
 
