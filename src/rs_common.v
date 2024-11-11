@@ -172,7 +172,6 @@ module find_first_ready_store(
         end
     endgenerate
 
-    wire ready_index;
     wire store_has_ready;
 
     // Generate ready signal for load entries

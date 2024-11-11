@@ -20,7 +20,7 @@ module regfile(
     // Output to Decoder
     output wire [`ROB_RANGE] to_decoder_rob_id[31:0],
     output wire [31:0] to_decoder_data[31:0]
-)
+);
 
 // Registers to store data and ROB IDs
 reg [31:0] register_data[31:0];
