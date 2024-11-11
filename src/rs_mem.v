@@ -300,21 +300,151 @@ module memory_unit(
 
     // Memory Operation Input
     input wire typ, // 0 for load, 1 for store
-    input wire [2:0] op,
+    input wire [2:0] op, // func3
     input wire [31:0] rs1,
     input wire [31:0] rs2, // 0 for load instruction
-    input wire [11:0] offset,
-    input wire [`ROB_RANGE] dest,
+    input wire [11:0] offset, // memory address is rs1 + offset
+    input wire [`ROB_RANGE] dest, // rob_id to be sent to CDB
 
     input wire flush_input, // flush signal. a flush signal is received on the first cycle, serving as RST
 
-    // Input and Output from memory
-    // TODO: add memory input and output
+    // Input from Memory Controller
+    input wire mem_din, // data from memory
+    input wire mem_success, // whether the memory operation in the last cycle is successful
+
+    // Output to Memory Controller
+    output reg[31:0] mem_addr, // memory address
+    output reg[7:0] mem_dout, // data to be written to memory
+    output reg mem_wr, // 1 for store, 0 for load
+    output reg mem_en, // 1 for memory operation, 0 for no operation
 
     // CDB Output
     output reg [`ROB_RANGE] rob_id, // ROB ID in the CDB output
     output reg [31:0] value, // value in the CDB output
+
+    // Output to Reservation Station
     output reg recv // whether the instruction is received. The RS keeps sending the same instruction until it is received
 );
-// ......
+
+    // States
+    localparam IDLE = 2'd0;
+    localparam LOADING = 2'd1;
+    localparam STORING = 2'd2;
+
+    reg [1:0] state;
+    reg [1:0] bytes_left; // Counter for remaining bytes
+    reg [2:0] func3;
+    reg [31:0] base_addr; // Base address of operation
+    reg [31:0] data_buffer; // Buffer for multi-byte operations
+    reg [`ROB_RANGE] current_rob; // Store ROB ID for current operation
+
+    always @(posedge clk_in) begin
+        if (flush_input) begin
+            state <= IDLE;
+            mem_en <= 0;
+            recv <= 0;
+            rob_id <= 0;
+            value <= 0;
+        end else begin
+            case (state)
+                IDLE: begin
+                    if (typ || op) begin // New operation received
+                        base_addr <= rs1 + {{20{offset[11]}}, offset};
+                        current_rob <= dest;
+
+                        case (op)
+                            3'b000,  // LB/SB
+                            3'b100: begin // LBU
+                                bytes_left <= 0;
+                            end
+                            3'b001,  // LH/SH
+                            3'b101: begin // LHU
+                                bytes_left <= 1;
+                            end
+                            3'b010: begin // LW/SW
+                                bytes_left <= 3;
+                            end
+                        endcase
+                        func3 <= op;
+
+                        if (typ) begin // Store operation
+                            state <= STORING;
+                            data_buffer <= rs2;
+                        end else begin // Load operation
+                            state <= LOADING;
+                            data_buffer <= 0;
+                        end
+
+                        mem_en <= 1;
+                        recv <= 1;
+                        rob_id <= 0;
+                    end else begin
+                        recv <= 0;
+                        mem_en <= 0;
+                        rob_id <= 0;
+                    end
+                end
+
+                LOADING: begin
+                    if (mem_success) begin
+                        data_buffer <= {mem_din, data_buffer[31:8]};
+
+                        if (bytes_left == 0) begin
+                            state <= IDLE;
+                            mem_en <= 0;
+                            rob_id <= current_rob;
+
+                            // Sign extension based on operation
+                            case (func3)
+                                3'b000: // LB
+                                    value <= {{24{data_buffer[7]}}, data_buffer[7:0]};
+                                3'b001: // LH
+                                    value <= {{16{data_buffer[15]}}, data_buffer[15:0]};
+                                3'b010: // LW
+                                    value <= data_buffer;
+                                3'b100: // LBU
+                                    value <= {24'b0, data_buffer[7:0]};
+                                3'b101: // LHU
+                                    value <= {16'b0, data_buffer[15:0]};
+                            endcase
+                        end else begin
+                            bytes_left <= bytes_left - 1;
+                            mem_addr <= mem_addr + 1;
+                        end
+                    end
+                end
+
+                STORING: begin
+                    if (mem_success) begin
+                        if (bytes_left == 0) begin
+                            state <= IDLE;
+                            mem_en <= 0;
+                            rob_id <= current_rob;
+                            value <= 32'b0; // No value needed for stores
+                        end else begin
+                            bytes_left <= bytes_left - 1;
+                            mem_addr <= mem_addr + 1;
+                            data_buffer <= {8'b0, data_buffer[31:8]};
+                            mem_dout <= data_buffer[7:0];
+                        end
+                    end
+                end
+            endcase
+        end
+    end
+
+    // Continuous assignments for memory interface
+    always @(*) begin
+        if (state == STORING) begin
+            mem_wr = 1;
+            mem_dout = data_buffer[7:0];
+        end else begin
+            mem_wr = 0;
+            mem_dout = 8'b0;
+        end
+
+        if (state == IDLE) begin
+            mem_addr = base_addr;
+        end
+    end
 endmodule
