@@ -205,7 +205,7 @@ module decoder(
     begin
         // Check ROB full condition first
         if (rob_full) begin
-            issue_failure(program_counter);
+            issue_failure();
         end
         else begin
             case (opcode)
@@ -218,7 +218,7 @@ module decoder(
 
                 7'b0010111: begin // AUIPC
                     if (rs_alu_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
                         write_rob(2'b10, 1'b0, 32'b0, 32'b0, rd, 1'b0);
                         write_regfile(rd);
@@ -249,7 +249,7 @@ module decoder(
                             disable_outputs_except(ENABLE_ROB | ENABLE_FETCH);
                         end
                     end else if (rs_alu_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
                         write_rob(2'b00, 1'b0, 32'b0, next_program_counter, rd, 1'b0);
                         write_regfile(rd);
@@ -262,7 +262,7 @@ module decoder(
 
                 7'b1100011: begin // Branch instructions
                     if (rs_bcu_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
 
                         write_rob(2'b01, 1'b0, 32'b0, program_counter, 5'd0, predicted_branch_taken);
@@ -280,7 +280,7 @@ module decoder(
 
                 7'b0000011: begin // Load Instructions
                     if (rs_mem_load_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
                         write_rob(2'b10, 1'b0, 32'b0, 32'b0, rd, 1'b0);
                         write_regfile(rd);
@@ -300,7 +300,7 @@ module decoder(
 
                 7'b0100011: begin // Store Instructions
                     if (rs_mem_store_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
                         write_rob(2'b10, 1'b0, 32'b0, 32'b0, 5'd0, 1'b0);
 
@@ -322,7 +322,7 @@ module decoder(
 
                 7'b0010011: begin // I-type ALU Instructions
                     if (rs_alu_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
 
                         write_rob(2'b10, 1'b0, 32'b0, 32'b0, rd, 1'b0);
@@ -343,7 +343,7 @@ module decoder(
 
                 7'b0110011: begin // R-type ALU Instructions
                     if (rs_alu_full) begin
-                        issue_failure(program_counter);
+                        issue_failure();
                     end else begin
                         write_rob(2'b10, 1'b0, 32'b0, 32'b0, rd, 1'b0);
                         write_regfile(rd);
@@ -373,11 +373,10 @@ module decoder(
 
     // Helper tasks
     task issue_failure;
-        input [31:0] program_counter;
     begin
         state <= STATE_ISSUE_PREVIOUS;
         fetcher_enabled <= 1;
-        fetcher_pc <= program_counter + 32'd4;
+        fetcher_pc <= next_program_counter;
         disable_outputs_except(2'b10);
     end
     endtask
