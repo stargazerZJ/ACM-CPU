@@ -76,7 +76,6 @@ reg [11:0] store_offset_entries[`RS_ARR];
 // Last issue state
 reg last_issue_status; // 0 for not issued, 1 for issued
 reg last_issue_typ; // 0 for load, 1 for store
-reg [3:0] last_issue_rs_id; // the RS id of the latest issued instruction, used to re-send
 reg [`ROB_RANGE] last_store_id; // the ROB id of the latest store instruction, used to update Ql
 
 // Combinational logic for finding slots and counting vacancies
@@ -163,7 +162,6 @@ always @(posedge clk_in) begin
         last_store_id <= 0;
         last_issue_status <= 0;
         last_issue_typ <= 0;
-        last_issue_rs_id <= 0;
         mem_typ <= 0;
         mem_op <= 0;
         mem_Vj <= 0;
@@ -183,12 +181,6 @@ always @(posedge clk_in) begin
                         store_Ql_entries[i] <= 0;
                     end
                 end
-            end
-            // Clear last sent entry
-            if (last_issue_typ) begin
-                store_busy[last_issue_rs_id] <= 0;
-            end else begin
-                load_busy[last_issue_rs_id] <= 0;
             end
             last_issue_status <= 0;
         end
@@ -262,23 +254,8 @@ always @(posedge clk_in) begin
         end
 
         // Issue operation
-        if (last_issue_status) begin
+        if (last_issue_status && !recv) begin
             // Resend last operation
-            if (last_issue_typ) begin // store
-                mem_typ <= 1;
-                mem_op <= store_op_entries[last_issue_rs_id];
-                mem_Vj <= store_Vj_entries[last_issue_rs_id];
-                mem_Vk <= store_Vk_entries[last_issue_rs_id];
-                mem_offset <= store_offset_entries[last_issue_rs_id];
-                mem_dest <= store_dest_entries[last_issue_rs_id];
-            end else begin // load
-                mem_typ <= 0;
-                mem_op <= load_op_entries[last_issue_rs_id];
-                mem_Vj <= load_Vj_entries[last_issue_rs_id];
-                mem_Vk <= 0;
-                mem_offset <= load_offset_entries[last_issue_rs_id];
-                mem_dest <= load_dest_entries[last_issue_rs_id];
-            end
         end else begin
             // Try to issue new operation
             if (has_load_ready) begin
@@ -291,7 +268,7 @@ always @(posedge clk_in) begin
                 mem_dest <= load_dest_entries[load_ready_index];
                 last_issue_status <= 1;
                 last_issue_typ <= 0;
-                last_issue_rs_id <= load_ready_index;
+                load_busy[load_ready_index] <= 0;
             end else if (has_store_ready) begin
                 // Issue store
                 mem_typ <= 1;
@@ -302,7 +279,7 @@ always @(posedge clk_in) begin
                 mem_dest <= store_dest_entries[store_ready_index];
                 last_issue_status <= 1;
                 last_issue_typ <= 1;
-                last_issue_rs_id <= store_ready_index;
+                store_busy[store_ready_index] <= 0;
             end else begin
                 // No operation to issue
                 mem_typ <= 0;
