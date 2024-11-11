@@ -124,15 +124,15 @@ always @(posedge clk_in) begin
     end else begin
         // Handle new operation input
         if (operation_enabled && !flush_outputs) begin
-            busy[next_tail(tail)] <= 1;
-            op[next_tail(tail)] <= operation_op;
-            value_ready[next_tail(tail)] <= operation_value_ready;
-            value[next_tail(tail)] <= new_operation_value;
-            alt_value[next_tail(tail)] <= operation_alt_value;
-            dest[next_tail(tail)] <= operation_dest;
-            branch_taken[next_tail(tail)] <= 0;
-            pred_branch_taken[next_tail(tail)] <= operation_predicted_branch_taken;
-            tail <= next_tail(tail);
+            busy[next_tail_output] <= 1;
+            op[next_tail_output] <= operation_op;
+            value_ready[next_tail_output] <= operation_value_ready;
+            value[next_tail_output] <= new_operation_value;
+            alt_value[next_tail_output] <= operation_alt_value;
+            dest[next_tail_output] <= operation_dest;
+            branch_taken[next_tail_output] <= 0;
+            pred_branch_taken[next_tail_output] <= operation_predicted_branch_taken;
+            tail <= next_tail_output;
         end
 
         // Handle CDB updates (ALU)
