@@ -58,14 +58,15 @@ always @(posedge clk_in) begin
     end
 end
 
-always @(*) begin
-    for (i = 1; i < 32; i = i + 1) begin
-        to_decoder_data[i] = register_data[i];
-        to_decoder_rob_id[i] = register_rob_id[i];
+genvar g;
+generate
+    for (g = 1; g < 32; g = g + 1) begin : decoder_connections
+        assign to_decoder_data[g] = register_data[g];
+        assign to_decoder_rob_id[g] = register_rob_id[g];
     end
-    to_decoder_data[0] = 32'b0;
-    to_decoder_rob_id[0] = 0;
-end
+endgenerate
+assign to_decoder_data[0] = 32'b0;
+assign to_decoder_rob_id[0] = 0;
 
 
 endmodule

@@ -20,67 +20,6 @@ module update_from_CDB (
 endmodule
 
 
-// Helper module to find first vacant slot
-module find_first_vacant(
-    input wire [15:0] busy,
-    output wire [3:0] vacant_index,
-    output wire has_vacant
-);
-    wire [3:0] result;
-    assign has_vacant = ~(&busy); // NOT of AND reduction - true if any slot is vacant
-
-    // Priority encoder to find first zero (vacant slot)
-    assign result[3] = ~(busy[15] | busy[14] | busy[13] | busy[12] | busy[11] | busy[10] | busy[9] | busy[8]);
-    assign result[2] = ~(
-        (result[3] ? busy[7] : busy[15]) |
-        (result[3] ? busy[6] : busy[14]) |
-        (result[3] ? busy[5] : busy[13]) |
-        (result[3] ? busy[4] : busy[12])
-    );
-    assign result[1] = ~(
-        (result[3:2] == 2'b10 ? busy[3] : (result[3:2] == 2'b11 ? busy[7] : busy[15])) |
-        (result[3:2] == 2'b10 ? busy[2] : (result[3:2] == 2'b11 ? busy[6] : busy[14]))
-    );
-    assign result[0] = ~(
-        (result[3:1] == 3'b100 ? busy[1] :
-         result[3:1] == 3'b101 ? busy[3] :
-         result[3:1] == 3'b110 ? busy[5] :
-         result[3:1] == 3'b111 ? busy[7] : busy[15])
-    );
-
-    assign vacant_index = result;
-endmodule
-
-module __find_first_ready(
-    input wire [15:0] ready,
-    output wire [3:0] ready_index,
-    output wire has_ready
-);
-    // Priority encoder for ready entries
-    wire [3:0] result;
-    assign has_ready = |ready; // OR reduction - true if any entry is ready
-
-    assign result[3] = ~(ready[15] | ready[14] | ready[13] | ready[12] | ready[11] | ready[10] | ready[9] | ready[8]);
-    assign result[2] = ~(
-        (result[3] ? ready[7] : ready[15]) |
-        (result[3] ? ready[6] : ready[14]) |
-        (result[3] ? ready[5] : ready[13]) |
-        (result[3] ? ready[4] : ready[12])
-    );
-    assign result[1] = ~(
-        (result[3:2] == 2'b10 ? ready[3] : (result[3:2] == 2'b11 ? ready[7] : ready[15])) |
-        (result[3:2] == 2'b10 ? ready[2] : (result[3:2] == 2'b11 ? ready[6] : ready[14]))
-    );
-    assign result[0] = ~(
-        (result[3:1] == 3'b100 ? ready[1] :
-         result[3:1] == 3'b101 ? ready[3] :
-         result[3:1] == 3'b110 ? ready[5] :
-         result[3:1] == 3'b111 ? ready[7] : ready[15])
-    );
-
-    assign ready_index = result;
-endmodule
-
 // Helper module to find first ready-to-issue entry
 module find_first_ready(
     input wire [15:0] busy,
@@ -100,10 +39,10 @@ module find_first_ready(
     endgenerate
 
     // Find first ready entry
-    __find_first_ready find_ready(
-        .ready(ready),
-        .ready_index(ready_index),
-        .has_ready(has_ready)
+    __find_first find_ready(
+        .entries(ready),
+        .index(ready_index),
+        .has_entry(has_ready)
     );
 endmodule
 
@@ -142,10 +81,10 @@ module find_first_ready_load(
     endgenerate
 
     // Find first ready entry
-    __find_first_ready find_ready(
-        .ready(ready),
-        .ready_index(ready_index),
-        .has_ready(has_ready)
+    __find_first find_ready(
+        .entries(ready),
+        .index(ready_index),
+        .has_entry(has_ready)
     );
 endmodule
 
@@ -185,12 +124,90 @@ module find_first_ready_store(
     assign can_store = ~(|load_ready);
 
     // Find first ready entry
-    __find_first_ready find_ready(
-        .ready(ready),
-        .ready_index(ready_index),
-        .has_ready(store_has_ready)
+    __find_first find_ready(
+        .entries(ready),
+        .index(ready_index),
+        .has_entry(store_has_ready)
     );
 
     assign has_ready = store_has_ready && can_store;
 
+endmodule
+
+// Generic module to find first index among 16 entries
+module __find_first(
+    input wire [15:0] entries,
+    output wire [3:0] index,
+    output wire has_entry
+);
+    wire [3:0] result;
+    assign has_entry = |entries; // OR reduction - true if any entry is 1
+
+    assign result[3] = ~(entries[15] | entries[14] | entries[13] | entries[12] | entries[11] | entries[10] | entries[9] | entries[8]);
+    assign result[2] = ~(
+        (result[3] ? entries[7] : entries[15]) |
+        (result[3] ? entries[6] : entries[14]) |
+        (result[3] ? entries[5] : entries[13]) |
+        (result[3] ? entries[4] : entries[12])
+    );
+    assign result[1] = ~(
+        (result[3:2] == 2'b10 ? entries[3] : (result[3:2] == 2'b11 ? entries[7] : entries[15])) |
+        (result[3:2] == 2'b10 ? entries[2] : (result[3:2] == 2'b11 ? entries[6] : entries[14]))
+    );
+    assign result[0] = ~(
+        (result[3:1] == 3'b100 ? entries[1] :
+         result[3:1] == 3'b101 ? entries[3] :
+         result[3:1] == 3'b110 ? entries[5] :
+         result[3:1] == 3'b111 ? entries[7] : entries[15])
+    );
+
+    assign index = result;
+endmodule
+
+// Module to find first vacant slot for load reservation station
+module find_first_vacant_load(
+    input wire [15:0] busy,
+    output wire [3:0] vacant_index,
+    output wire has_vacant
+);
+    wire [15:0] vacant;
+    assign vacant = ~busy; // Invert busy signals to get vacant slots
+
+    __find_first find_vacant(
+        .entries(vacant),
+        .index(vacant_index),
+        .has_entry(has_vacant)
+    );
+endmodule
+
+// Module to find first vacant slot for store reservation station
+module find_first_vacant_store(
+    input wire [15:0] busy,
+    output wire [3:0] vacant_index,
+    output wire has_vacant
+);
+    wire [15:0] vacant;
+    assign vacant = ~busy; // Invert busy signals to get vacant slots
+
+    __find_first find_vacant(
+        .entries(vacant),
+        .index(vacant_index),
+        .has_entry(has_vacant)
+    );
+endmodule
+
+// Helper module to find first vacant slot
+module find_first_vacant(
+    input wire [15:0] busy,
+    output wire [3:0] vacant_index,
+    output wire has_vacant
+);
+    wire [15:0] vacant;
+    assign vacant = ~busy;
+
+    __find_first find_vacant(
+        .entries(vacant),
+        .index(vacant_index),
+        .has_entry(has_vacant)
+    );
 endmodule

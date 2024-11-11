@@ -9,6 +9,7 @@
 `define ROB_SIZE      32
 `define ROB_RANGE     4:0
 `define ROB_ARR       31:0
+`define ROB_SIZE_LOG  5
 
 // instruction format
 `define OP_type       6:0

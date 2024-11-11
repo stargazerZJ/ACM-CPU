@@ -122,13 +122,13 @@ find_first_ready_store store_ready_finder(
     .has_ready(has_store_ready)
 );
 
-count_load_vacancies load_vacancy_counter(
+count_vacancies load_vacancy_counter(
     .busy(load_busy),
     .has_no_vacancy(has_no_load_vacancy),
     .has_one_vacancy(has_one_load_vacancy)
 );
 
-count_store_vacancies store_vacancy_counter(
+count_vacancies store_vacancy_counter(
     .busy(store_busy),
     .has_no_vacancy(has_no_store_vacancy),
     .has_one_vacancy(has_one_store_vacancy)
