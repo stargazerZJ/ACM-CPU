@@ -1,4 +1,4 @@
-module icache #(
+module instruction_cache #(
     parameter I_CACHE_SIZE_LOG = 7
 )(
     input wire clk_in,
@@ -69,32 +69,34 @@ module icache #(
 endmodule
 
 module mem_controller (
+    input wire clk_in,
+
     // Memory interface
     input wire [7:0] mem_din,
-    wire [7:0] mem_dout,
-    wire [31:0] mem_a,
-    wire mem_wr,
+    output wire [7:0] mem_dout,
+    output wire [31:0] mem_a,
+    output wire mem_wr,
 
     // Load Store Buffer interface
     input wire [31:0] lsb_addr,
     input wire [7:0] lsb_data,
     input wire lsb_wr,
-    input wire lsb_valid,
-    wire [7:0] lsb_read_data,
-    wire lsb_done,
+    input wire lsb_en,
+    output wire [7:0] lsb_read_data,
+    output reg lsb_valid,
 
     // ICache interface
     input wire [31:0] icache_addr,
     input wire icache_busy,
-    wire icache_data_valid,
-    wire [7:0] icache_data
+    output reg icache_data_valid,
+    output wire [7:0] icache_data
 );
 
 // Memory address mux
-assign mem_a = lsb_valid ? lsb_addr : icache_addr;
+assign mem_a = lsb_en ? lsb_addr : icache_addr;
 
 // Memory write control
-assign mem_wr = lsb_valid ? lsb_wr : 1'b0;
+assign mem_wr = lsb_en ? lsb_wr : 1'b0;
 
 // Memory write data
 assign mem_dout = lsb_data;
@@ -102,11 +104,16 @@ assign mem_dout = lsb_data;
 // Load Store Buffer read data
 assign lsb_read_data = mem_din;
 
-// Load Store Buffer done signal
-assign lsb_done = lsb_valid;
+// Sequential logic for valid signals
+always @(posedge clk_in) begin
+    // LSB valid signal
+    lsb_valid <= lsb_en;
 
-// ICache interface signals
+    // ICache valid signal
+    icache_data_valid <= icache_busy && !lsb_en;
+end
+
+// ICache read data
 assign icache_data = mem_din;
-assign icache_data_valid = icache_busy && !lsb_valid;
 
 endmodule

@@ -44,7 +44,7 @@ module decoder(
 
     // Output to ROB
     output reg rob_enabled,
-    output reg [1:0] rob_op,          // 00 for jalr, 01 for branch, 10 for others, 11 for special halt instruction
+    output reg [1:0] rob_op,          // 00 for jalr, 01 for branch, 10 for others, 11 unused
     output reg rob_value_ready,        // 1 for value acquired, 0 otherwise
     output reg [31:0] rob_value,       // for jalr, the jump address; for branch and others, the value to write to the register
     output reg [31:0] rob_alt_value,   // for jalr, pc + 4; for branch, pc of the branch; for others, unused

@@ -295,7 +295,7 @@ always @(posedge clk_in) begin
 end
 endmodule
 
-module memory_unit(
+module load_store_unit(
     input wire clk_in, // system clock signal
 
     // Memory Operation Input
