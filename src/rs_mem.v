@@ -43,7 +43,7 @@ module reservation_station_mem(
     output wire has_no_store_vacancy,
     output wire has_one_store_vacancy,
 
-    // Output to MEM
+    // Output to Load/Store Unit
     output reg mem_typ, // 0 for load, 1 for store
     output reg [2:0] mem_op,
     output reg [31:0] mem_Vj,

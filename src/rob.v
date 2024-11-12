@@ -121,6 +121,9 @@ always @(posedge clk_in) begin
             branch_taken[j] <= 0;
             pred_branch_taken[j] <= 0;
         end
+        // Reset program counter to 0x0000
+        fetcher_pc_enabled <= 1;
+        fetcher_pc <= 0;
     end else begin
         // Handle new operation input
         if (operation_enabled && !flush_outputs) begin
