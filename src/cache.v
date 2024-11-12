@@ -47,16 +47,15 @@ module icache #(
 
             // Handle instruction fetch request
             if (req_pc >= start_pos &&
-                req_pc + 3 < current_fill_pos) begin
-                // Cache hit
-                valid_out <= 1'b1;
+                        req_pc + 3 < start_pos + I_CACHE_SIZE * 2) begin
+                valid_out <= (req_pc + 3 < current_fill_pos) ? 1'b1 : 1'b0;
                 inst_out <= {
                     cache_data[cache_index + 3],
                     cache_data[cache_index + 2],
                     cache_data[cache_index + 1],
                     cache_data[cache_index]
                 };
-            end else if (req_pc[31:16] == 16'h0) begin
+            end else begin
                 // Cache miss - start new fill
                 start_pos <= new_start_pos;
                 current_fill_pos <= new_start_pos;
