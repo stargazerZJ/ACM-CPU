@@ -1,6 +1,6 @@
-module instruction_cache #(
-    parameter I_CACHE_SIZE_LOG = 7
-)(
+`include "const_def.v"
+
+module instruction_cache (
     input wire clk_in,
     input wire rst_in,
 
@@ -15,15 +15,13 @@ module instruction_cache #(
     output reg [31:0] miss_addr  // Address to fetch on miss
 );
 
-    localparam I_CACHE_SIZE = 1 << I_CACHE_SIZE_LOG;
-
-    reg [7:0] cache_data [(I_CACHE_SIZE * 2 + 2) - 1:0];
+    reg [7:0] cache_data [(`I_CACHE_SIZE * 2 + 2) - 1:0];
     reg [31:0] start_pos;
     reg [31:0] current_fill_pos;
     reg is_filling;
     reg cache_valid;
-    wire[31:0] new_start_pos = {req_pc[31:I_CACHE_SIZE_LOG], I_CACHE_SIZE_LOG{1'b0}};
-    wire [I_CACHE_SIZE_LOG:0] cache_index = {1'b0, req_pc[I_CACHE_SIZE_LOG-1:0]};
+    wire[31:0] new_start_pos = {req_pc[31:`I_CACHE_SIZE_LOG], {`I_CACHE_SIZE_LOG{1'b0}}}; // Syntax error
+    wire [`I_CACHE_SIZE_LOG:0] cache_index = {1'b0, req_pc[`I_CACHE_SIZE_LOG-1:0]};
 
     always @(posedge clk_in) begin
         if (rst_in) begin
@@ -37,7 +35,7 @@ module instruction_cache #(
             if (mem_valid && is_filling) begin
                 cache_data[current_fill_pos - start_pos] <= mem_byte;
 
-                if (current_fill_pos - start_pos == I_CACHE_SIZE * 2 + 1) begin
+                if (current_fill_pos - start_pos == `I_CACHE_SIZE * 2 + 1) begin
                     is_filling <= 1'b0;
                     cache_valid <= 1'b1;
                 end else begin
@@ -47,7 +45,7 @@ module instruction_cache #(
 
             // Handle instruction fetch request
             if (req_pc >= start_pos &&
-                        req_pc + 3 < start_pos + I_CACHE_SIZE * 2) begin
+                        req_pc + 3 < start_pos + `I_CACHE_SIZE * 2) begin
                 valid_out <= (req_pc + 3 < current_fill_pos) ? 1'b1 : 1'b0;
                 inst_out <= {
                     cache_data[cache_index + 3],

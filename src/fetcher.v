@@ -16,12 +16,12 @@ module instruction_fetch_unit (
     // Interface with memory controller
     input wire [7:0] mem_byte,   // Byte from memory
     input wire mem_valid,        // Whether memory data is valid
-    output wire [31:0] miss_addr  // Address to fetch on miss
+    output wire [31:0] miss_addr,  // Address to fetch on miss
 
     output wire [31:0] inst_out,  // Instruction output
     output reg [31:0] program_counter,  // Program counter output
     output wire valid_out,        // Whether output is valid
-    output reg pred_branch_taken, // Whether branch is predicted taken
+    output reg pred_branch_taken // Whether branch is predicted taken
 );
 
 wire [31:0] pc;
@@ -39,7 +39,7 @@ instruction_cache icache(
     .mem_byte(mem_byte),
     .mem_valid(mem_valid),
     .miss_addr(miss_addr)
-)
+);
 
 always @(posedge clk_in) begin
     pred_branch_taken <= pc[2]; // The branch predictor is not implemented yet

@@ -4,7 +4,7 @@ module decoder(
     input wire clk_in,  // system clock signal
 
     // Input from Fetcher
-    input wire fetcher_enabled,
+    input wire instruction_valid,
     input wire [31:0] fetcher_instruction,
     input wire [31:0] fetcher_program_counter,
     input wire fetcher_predicted_branch_taken,
@@ -146,8 +146,11 @@ module decoder(
                 end
 
                 STATE_TRY_TO_ISSUE: begin
-                    if (fetcher_enabled) begin
+                    if (instruction_valid) begin
                         issue_instruction();
+                    end
+                    else begin
+                        disable_all_outputs();
                     end
                 end
 

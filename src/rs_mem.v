@@ -309,12 +309,12 @@ module load_store_unit(
     input wire flush_input, // flush signal. a flush signal is received on the first cycle, serving as RST
 
     // Input from Memory Controller
-    input wire mem_din, // data from memory
+    input wire [7:0] mem_din, // data from memory
     input wire mem_success, // whether the memory operation in the last cycle is successful
 
     // Output to Memory Controller
-    output reg[31:0] mem_addr, // memory address
-    output reg[7:0] mem_dout, // data to be written to memory
+    output reg [31:0] mem_addr, // memory address
+    output reg [7:0] mem_dout, // data to be written to memory
     output reg mem_wr, // 1 for store, 0 for load
     output reg mem_en, // 1 for memory operation, 0 for no operation
 

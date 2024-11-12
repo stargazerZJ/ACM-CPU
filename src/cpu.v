@@ -1,7 +1,9 @@
 // RISCV32 CPU top module
 // port modification allowed for debugging purposes
 
-module cpu(
+`include "const_def.v"
+
+module cpu (
   input  wire                 clk_in,			// system clock signal
   input  wire                 rst_in,			// reset signal
   input  wire					        rdy_in,			// ready signal, pause cpu when low
@@ -15,8 +17,6 @@ module cpu(
 
   output wire [31:0]			dbgreg_dout		// cpu register output (debugging demo)
 );
-
-// implementation goes here
 
 // Specifications:
 // - Pause cpu(freeze pc, registers, etc.) when rdy_in is low
@@ -107,6 +107,9 @@ module cpu(
     wire [`ROB_RANGE] regfile_write_reg_id;
     wire [31:0] regfile_write_data;
     wire [`ROB_RANGE] regfile_write_rob_id;
+    wire decoder_regfile_enabled;
+    wire [`ROB_RANGE] decoder_regfile_reg_id;
+    wire [`ROB_RANGE] decoder_regfile_rob_id_out;
 
     // Register File
     regfile rf(
@@ -137,6 +140,10 @@ module cpu(
     wire rs_mem_store_full = rs_mem_has_no_store_vacancy || (rs_mem_has_one_store_vacancy && decoder_rs_mem_store_enabled);
 
     // Wires for ALU Reservation Station and ALU
+    wire decoder_rs_alu_enabled;
+    wire [3:0] decoder_rs_alu_op;
+    wire [31:0] decoder_rs_alu_Vj, decoder_rs_alu_Vk;
+    wire [`ROB_RANGE] decoder_rs_alu_Qj, decoder_rs_alu_Qk, decoder_rs_alu_dest;
     wire [3:0] alu_op;
     wire [31:0] alu_Vj, alu_Vk;
     wire [`ROB_RANGE] alu_dest;
@@ -176,6 +183,11 @@ module cpu(
     );
 
     // Wires for BCU Reservation Station and BCU
+    wire decoder_rs_bcu_enabled;
+    wire [2:0] decoder_rs_bcu_op;
+    wire [31:0] decoder_rs_bcu_Vj, decoder_rs_bcu_Vk;
+    wire [`ROB_RANGE] decoder_rs_bcu_Qj, decoder_rs_bcu_Qk, decoder_rs_bcu_dest;
+    wire [31:0] decoder_rs_bcu_pc_fallthrough, decoder_rs_bcu_pc_target;
     wire [2:0] bcu_op;
     wire [31:0] bcu_Vj, bcu_Vk;
     wire [`ROB_RANGE] bcu_dest;
@@ -226,6 +238,16 @@ module cpu(
     );
 
     // Wires for Memory Reservation Station and Load/Store Unit
+    wire decoder_rs_mem_load_enabled;
+    wire [2:0] decoder_rs_mem_load_op;
+    wire [31:0] decoder_rs_mem_load_Vj;
+    wire [11:0] decoder_rs_mem_load_offset;
+    wire [`ROB_RANGE] decoder_rs_mem_load_Qj, decoder_rs_mem_load_dest;
+    wire decoder_rs_mem_store_enabled;
+    wire [2:0] decoder_rs_mem_store_op;
+    wire [31:0] decoder_rs_mem_store_Vj, decoder_rs_mem_store_Vk;
+    wire [11:0] decoder_rs_mem_store_offset;
+    wire [`ROB_RANGE] decoder_rs_mem_store_Qj, decoder_rs_mem_store_Qk, decoder_rs_mem_store_Qm, decoder_rs_mem_store_dest;
     wire mem_typ;
     wire [2:0] mem_op;
     wire [31:0] mem_Vj, mem_Vk;
@@ -291,6 +313,12 @@ module cpu(
         .recv(mem_recv)
     );
     // Wires for ROB
+    wire decoder_rob_enabled;
+    wire [1:0] decoder_rob_op;
+    wire decoder_rob_value_ready;
+    wire [31:0] decoder_rob_value, decoder_rob_alt_value;
+    wire [`ROB_RANGE] decoder_rob_dest;
+    wire decoder_rob_predicted_branch_taken;
     wire rob_has_no_vacancy, rob_has_one_vacancy;
     wire [`ROB_RANGE] rob_next_tail, rob_next_next_tail;
     wire rob_flush;
@@ -335,13 +363,14 @@ module cpu(
         .flush_outputs(rob_flush)
     );
 
-    // Compute ROB full signal for decoder
+    // Compute ROB full and tail signal for decoder
     wire rob_full = rob_has_no_vacancy || (rob_has_one_vacancy && decoder_rob_enabled);
+    wire [`ROB_RANGE] rob_tail = decoder_rob_enabled ? rob_next_next_tail : rob_next_tail;
 
     // Decoder
     decoder decoder_unit(
         .clk_in(clk_in),
-        .fetcher_enabled(ifu_valid_out),
+        .instruction_valid(ifu_valid_out),
         .fetcher_instruction(inst_out),
         .fetcher_program_counter(program_counter),
         .fetcher_predicted_branch_taken(pred_branch_taken),
@@ -358,7 +387,7 @@ module cpu(
         .rs_mem_load_full(rs_mem_load_full),
         .rs_mem_store_full(rs_mem_store_full),
         .rob_full(rob_full),
-        .rob_id(rob_next_tail),
+        .rob_id(rob_tail),
         .commit_rob_id(rob_commit_id),
         .flush_input(rob_flush),
 
