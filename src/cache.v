@@ -12,6 +12,7 @@ module instruction_cache (
     // Interface with memory controller
     input wire [7:0] mem_byte,   // Byte from memory
     input wire mem_valid,        // Whether memory data is valid
+    output reg mem_en,           // Memory enable signal
     output reg [31:0] miss_addr  // Address to fetch on miss
 );
 
@@ -60,10 +61,12 @@ module instruction_cache (
                 is_filling <= 1'b1;
                 cache_valid <= 1'b0;
                 valid_out <= 1'b0;
-                miss_addr <= req_pc;
             end
         end
     end
+
+    assign mem_en = is_filling;
+    assign miss_addr = current_fill_pos;
 endmodule
 
 module mem_controller (
@@ -85,7 +88,7 @@ module mem_controller (
 
     // ICache interface
     input wire [31:0] icache_addr,
-    input wire icache_busy,
+    input wire icache_en,
     output reg icache_data_valid,
     output wire [7:0] icache_data
 );
@@ -108,7 +111,7 @@ always @(posedge clk_in) begin
     lsb_valid <= lsb_en;
 
     // ICache valid signal
-    icache_data_valid <= icache_busy && !lsb_en;
+    icache_data_valid <= icache_en && !lsb_en;
 end
 
 // ICache read data

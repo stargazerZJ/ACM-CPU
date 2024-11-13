@@ -16,6 +16,7 @@ module instruction_fetch_unit (
     // Interface with memory controller
     input wire [7:0] mem_byte,   // Byte from memory
     input wire mem_valid,        // Whether memory data is valid
+    output reg mem_en,           // Memory enable signal
     output wire [31:0] miss_addr,  // Address to fetch on miss
 
     output wire [31:0] inst_out,  // Instruction output
@@ -38,6 +39,7 @@ instruction_cache icache(
     .valid_out(valid_out),
     .mem_byte(mem_byte),
     .mem_valid(mem_valid),
+    .mem_en(mem_en),
     .miss_addr(miss_addr)
 );
 

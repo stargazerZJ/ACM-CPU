@@ -44,7 +44,7 @@ module cpu (
 
     // Wires between Memory Controller and IFU
     wire [31:0] icache_addr;
-    wire icache_busy;
+    wire icache_en;
     wire icache_data_valid;
     wire [7:0] icache_data;
 
@@ -62,7 +62,7 @@ module cpu (
         .lsb_read_data(lsb_read_data),
         .lsb_valid(lsb_valid),
         .icache_addr(icache_addr),
-        .icache_busy(icache_busy),
+        .icache_en(icache_en),
         .icache_data_valid(icache_data_valid),
         .icache_data(icache_data)
     );
@@ -93,6 +93,7 @@ module cpu (
         .branch_record_valid(branch_record_valid),
         .mem_byte(icache_data),
         .mem_valid(icache_data_valid),
+        .mem_en(icache_en),
         .miss_addr(icache_addr),
         .inst_out(inst_out),
         .program_counter(program_counter),

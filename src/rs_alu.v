@@ -187,7 +187,8 @@ always @(posedge clk_in) begin
             4'b0111: // AND, ANDI
                 value <= rs1 & rs2;
             default: // handle unexpected opcodes
-                $fatal("Unreachable code reached: unsupported operation.");
+                // $fatal("Unreachable code reached: unsupported operation.");
+                value <= 0;
         endcase
         rob_id <= dest;
     end
