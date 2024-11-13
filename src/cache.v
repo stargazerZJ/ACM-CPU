@@ -19,35 +19,39 @@ module instruction_cache (
     reg [7:0] cache_data [(`I_CACHE_SIZE * 2 + 2) - 1:0];
     reg [31:0] start_pos;
     reg [31:0] current_fill_pos;
+    reg [`I_CACHE_SIZE_LOG+2:0] fill_index;
     reg is_filling;
     reg cache_valid;
     wire[31:0] new_start_pos = {req_pc[31:`I_CACHE_SIZE_LOG], {`I_CACHE_SIZE_LOG{1'b0}}}; // Syntax error
-    wire [`I_CACHE_SIZE_LOG:0] cache_index = {1'b0, req_pc[`I_CACHE_SIZE_LOG-1:0]};
+    wire [`I_CACHE_SIZE_LOG+2:0] cache_index = {1'b0, req_pc[`I_CACHE_SIZE_LOG+1:0]};
 
     always @(posedge clk_in) begin
         if (rst_in) begin
             start_pos <= 32'h0;
             current_fill_pos <= 32'h0;
-            is_filling <= 1'b1;
+            fill_index <= 0;
+            is_filling <= 1'b0;
             cache_valid <= 1'b0;
             valid_out <= 1'b0;
         end else begin
             // Handle memory response
-            if (mem_valid && is_filling) begin
-                cache_data[current_fill_pos - start_pos] <= mem_byte;
+            if (mem_valid && !cache_valid) begin
+                cache_data[fill_index] <= mem_byte;
 
-                if (current_fill_pos - start_pos == `I_CACHE_SIZE * 2 + 1) begin
+                if (fill_index == `I_CACHE_SIZE * 2 + 2) begin
                     is_filling <= 1'b0;
                     cache_valid <= 1'b1;
                 end else begin
                     current_fill_pos <= current_fill_pos + 1;
+                    fill_index <= fill_index + is_filling; // ignore the byte in the first cycle of the filling
+                    is_filling <= 1'b1;
                 end
             end
 
             // Handle instruction fetch request
             if (req_pc >= start_pos &&
                         req_pc + 3 < start_pos + `I_CACHE_SIZE * 2) begin
-                valid_out <= (req_pc + 3 < current_fill_pos) ? 1'b1 : 1'b0;
+                valid_out <= (req_pc + 4 < current_fill_pos) ? 1'b1 : 1'b0;
                 inst_out <= {
                     cache_data[cache_index + 3],
                     cache_data[cache_index + 2],
@@ -58,15 +62,24 @@ module instruction_cache (
                 // Cache miss - start new fill
                 start_pos <= new_start_pos;
                 current_fill_pos <= new_start_pos;
-                is_filling <= 1'b1;
+                fill_index <= 0;
+                is_filling <= 1'b0;
                 cache_valid <= 1'b0;
                 valid_out <= 1'b0;
             end
         end
     end
 
-    assign mem_en = is_filling;
+    assign mem_en = !cache_valid;
     assign miss_addr = current_fill_pos;
+
+    wire [31:0] debug = {
+        cache_data[3],
+        cache_data[2],
+        cache_data[1],
+        cache_data[0]
+    };
+
 endmodule
 
 module mem_controller (
