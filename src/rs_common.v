@@ -1,25 +1,3 @@
-// Helper module to update from CDB
-module update_from_CDB (
-    input [31:0] current_V,
-    input [`ROB_RANGE] current_Q,
-    input [31:0] cdb_alu_value,
-    input [`ROB_RANGE] cdb_alu_rob_id,
-    input [31:0] cdb_mem_value,
-    input [`ROB_RANGE] cdb_mem_rob_id,
-    output [31:0] updated_V,
-    output [`ROB_RANGE] updated_Q
-);
-
-    // Determine the new value based on CDB inputs
-    assign updated_V = (current_Q == cdb_alu_rob_id) ? cdb_alu_value :
-                       (current_Q == cdb_mem_rob_id) ? cdb_mem_value : current_V;
-
-    // Update the tag if the data is already available
-    assign updated_Q = (current_Q == cdb_alu_rob_id || current_Q == cdb_mem_rob_id) ? 0 : current_Q;
-
-endmodule
-
-
 // Helper module to find first ready-to-issue entry
 module find_first_ready(
     input wire [15:0] busy,
@@ -134,32 +112,37 @@ module find_first_ready_store(
 
 endmodule
 
-// Generic module to find first index among 16 entries
+// Generic module to find first 1 among 16 entries
 module __find_first(
     input wire [15:0] entries,
     output wire [3:0] index,
     output wire has_entry
 );
-    wire [3:0] result;
+    reg [3:0] result;
     assign has_entry = |entries; // OR reduction - true if any entry is 1
 
-    assign result[3] = ~(entries[15] | entries[14] | entries[13] | entries[12] | entries[11] | entries[10] | entries[9] | entries[8]);
-    assign result[2] = ~(
-        (result[3] ? entries[7] : entries[15]) |
-        (result[3] ? entries[6] : entries[14]) |
-        (result[3] ? entries[5] : entries[13]) |
-        (result[3] ? entries[4] : entries[12])
-    );
-    assign result[1] = ~(
-        (result[3:2] == 2'b10 ? entries[3] : (result[3:2] == 2'b11 ? entries[7] : entries[15])) |
-        (result[3:2] == 2'b10 ? entries[2] : (result[3:2] == 2'b11 ? entries[6] : entries[14]))
-    );
-    assign result[0] = ~(
-        (result[3:1] == 3'b100 ? entries[1] :
-         result[3:1] == 3'b101 ? entries[3] :
-         result[3:1] == 3'b110 ? entries[5] :
-         result[3:1] == 3'b111 ? entries[7] : entries[15])
-    );
+    // Priority encoder implementation
+    always @(*) begin
+        casez (entries)
+            16'b???????????????1: result = 4'd0;
+            16'b??????????????10: result = 4'd1;
+            16'b?????????????100: result = 4'd2;
+            16'b????????????1000: result = 4'd3;
+            16'b???????????10000: result = 4'd4;
+            16'b??????????100000: result = 4'd5;
+            16'b?????????1000000: result = 4'd6;
+            16'b????????10000000: result = 4'd7;
+            16'b???????100000000: result = 4'd8;
+            16'b??????1000000000: result = 4'd9;
+            16'b?????10000000000: result = 4'd10;
+            16'b????100000000000: result = 4'd11;
+            16'b???1000000000000: result = 4'd12;
+            16'b??10000000000000: result = 4'd13;
+            16'b?100000000000000: result = 4'd14;
+            16'b1000000000000000: result = 4'd15;
+            default: result = 4'd0;
+        endcase
+    end
 
     assign index = result;
 endmodule

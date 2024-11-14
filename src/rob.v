@@ -91,7 +91,7 @@ endfunction
 // Output assignments
 assign next_tail_output = next_tail(tail);
 assign next_next_tail_output = next_tail(next_tail(tail));
-assign has_no_vacancy = (next_tail_output == head);
+assign has_no_vacancy = (next_tail_output == head) && busy[head];
 assign has_one_vacancy = (next_next_tail_output == head);
 
 // Connect decoder outputs
@@ -229,4 +229,15 @@ always @(posedge clk_in) begin
         end
     end
 end
+
+// Debugging
+wire head_busy = busy[head];
+wire [1:0] head_op = op[head];
+wire head_value_ready = value_ready[head];
+wire [31:0] head_value = value[head];
+wire [31:0] head_alt_value = alt_value[head];
+wire [4:0] head_dest = dest[head];
+wire head_branch_taken = branch_taken[head];
+wire head_pred_branch_taken = pred_branch_taken[head];
+
 endmodule

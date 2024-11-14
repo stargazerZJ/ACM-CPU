@@ -135,18 +135,12 @@ count_vacancies store_vacancy_counter(
 );
 
 // Helper wires for CDB updates
-wire [31:0] load_new_Vj = (load_Qj == cdb_alu_rob_id) ? cdb_alu_value :
-                          (load_Qj == cdb_mem_rob_id) ? cdb_mem_value : load_Vj;
-wire [`ROB_RANGE] load_new_Qj = (load_Qj == cdb_alu_rob_id || load_Qj == cdb_mem_rob_id) ? 0 : load_Qj;
-
-// For store operation inputs
-wire [31:0] store_new_Vj = (store_Qj == cdb_alu_rob_id) ? cdb_alu_value :
-                           (store_Qj == cdb_mem_rob_id) ? cdb_mem_value : store_Vj;
-wire [31:0] store_new_Vk = (store_Qk == cdb_alu_rob_id) ? cdb_alu_value :
-                           (store_Qk == cdb_mem_rob_id) ? cdb_mem_value : store_Vk;
-
-wire [`ROB_RANGE] store_new_Qj = (store_Qj == cdb_alu_rob_id || store_Qj == cdb_mem_rob_id) ? 0 : store_Qj;
-wire [`ROB_RANGE] store_new_Qk = (store_Qk == cdb_alu_rob_id || store_Qk == cdb_mem_rob_id) ? 0 : store_Qk;
+wire [31:0] load_new_Vj = `GET_NEW_VAL(load_Vj, load_Qj, cdb_alu_rob_id, cdb_alu_value, cdb_mem_rob_id, cdb_mem_value);
+wire [`ROB_RANGE] load_new_Qj = `GET_NEW_Q(load_Qj, cdb_alu_rob_id, cdb_mem_rob_id);
+wire [31:0] store_new_Vj = `GET_NEW_VAL(store_Vj, store_Qj, cdb_alu_rob_id, cdb_alu_value, cdb_mem_rob_id, cdb_mem_value);
+wire [31:0] store_new_Vk = `GET_NEW_VAL(store_Vk, store_Qk, cdb_alu_rob_id, cdb_alu_value, cdb_mem_rob_id, cdb_mem_value);
+wire [`ROB_RANGE] store_new_Qj = `GET_NEW_Q(store_Qj, cdb_alu_rob_id, cdb_mem_rob_id);
+wire [`ROB_RANGE] store_new_Qk = `GET_NEW_Q(store_Qk, cdb_alu_rob_id, cdb_mem_rob_id);
 
 wire [`ROB_RANGE] new_Ql = (recv && last_issue_status && last_issue_typ && last_store_id == mem_dest) ? 0 : last_store_id;
 wire [`ROB_RANGE] store_new_Qm = (store_Qm == rob_commit_id) ? 0 : store_Qm;
@@ -214,33 +208,24 @@ always @(posedge clk_in) begin
         for (i = 0; i < `RS_SIZE; i = i + 1) begin
             // Update load entries
             if (load_busy[i]) begin
-                if (load_Qj_entries[i] == cdb_alu_rob_id) begin
-                    load_Vj_entries[i] <= cdb_alu_value;
-                    load_Qj_entries[i] <= 0;
-                end
-                if (load_Qj_entries[i] == cdb_mem_rob_id) begin
-                    load_Vj_entries[i] <= cdb_mem_value;
-                    load_Qj_entries[i] <= 0;
-                end
+                `UPDATE_ENTRY_WITH_CDB(
+                    load_Vj_entries[i], load_Qj_entries[i],
+                    cdb_alu_rob_id, cdb_alu_value,
+                    cdb_mem_rob_id, cdb_mem_value
+                )
             end
             // Update store entries
             if (store_busy[i]) begin
-                if (store_Qj_entries[i] == cdb_alu_rob_id) begin
-                    store_Vj_entries[i] <= cdb_alu_value;
-                    store_Qj_entries[i] <= 0;
-                end
-                if (store_Qk_entries[i] == cdb_alu_rob_id) begin
-                    store_Vk_entries[i] <= cdb_alu_value;
-                    store_Qk_entries[i] <= 0;
-                end
-                if (store_Qj_entries[i] == cdb_mem_rob_id) begin
-                    store_Vj_entries[i] <= cdb_mem_value;
-                    store_Qj_entries[i] <= 0;
-                end
-                if (store_Qk_entries[i] == cdb_mem_rob_id) begin
-                    store_Vk_entries[i] <= cdb_mem_value;
-                    store_Qk_entries[i] <= 0;
-                end
+                `UPDATE_ENTRY_WITH_CDB(
+                    store_Vj_entries[i], store_Qj_entries[i],
+                    cdb_alu_rob_id, cdb_alu_value,
+                    cdb_mem_rob_id, cdb_mem_value
+                )
+                `UPDATE_ENTRY_WITH_CDB(
+                    store_Vk_entries[i], store_Qk_entries[i],
+                    cdb_alu_rob_id, cdb_alu_value,
+                    cdb_mem_rob_id, cdb_mem_value
+                )
             end
         end
 

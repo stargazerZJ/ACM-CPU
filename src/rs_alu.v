@@ -70,13 +70,10 @@ count_vacancies vacancy_counter(
 );
 
 // Wire up the input values with CDB updates
-wire [31:0] new_Vj = (Qj == cdb_alu_rob_id) ? cdb_alu_value :
-                     (Qj == cdb_mem_rob_id) ? cdb_mem_value : Vj;
-wire [`ROB_RANGE] new_Qj = (Qj == cdb_alu_rob_id || Qj == cdb_mem_rob_id) ? 0 : Qj;
-
-wire [31:0] new_Vk = (Qk == cdb_alu_rob_id) ? cdb_alu_value :
-                     (Qk == cdb_mem_rob_id) ? cdb_mem_value : Vk;
-wire [`ROB_RANGE] new_Qk = (Qk == cdb_alu_rob_id || Qk == cdb_mem_rob_id) ? 0 : Qk;
+wire [31:0] new_Vj = `GET_NEW_VAL(Vj, Qj, cdb_alu_rob_id, cdb_alu_value, cdb_mem_rob_id, cdb_mem_value);
+wire [`ROB_RANGE] new_Qj = `GET_NEW_Q(Qj, cdb_alu_rob_id, cdb_mem_rob_id);
+wire [31:0] new_Vk = `GET_NEW_VAL(Vk, Qk, cdb_alu_rob_id, cdb_alu_value, cdb_mem_rob_id, cdb_mem_value);
+wire [`ROB_RANGE] new_Qk = `GET_NEW_Q(Qk, cdb_alu_rob_id, cdb_mem_rob_id);
 
 integer i;
 
@@ -100,22 +97,16 @@ always @(posedge clk_in) begin
         // Update existing entries with CDB data
         for (i = 0; i < `RS_SIZE; i = i + 1) begin
             if (busy[i]) begin
-                if (Qj_entries[i] == cdb_alu_rob_id) begin
-                    Vj_entries[i] <= cdb_alu_value;
-                    Qj_entries[i] <= 0;
-                end
-                if (Qj_entries[i] == cdb_mem_rob_id) begin
-                    Vj_entries[i] <= cdb_mem_value;
-                    Qj_entries[i] <= 0;
-                end
-                if (Qk_entries[i] == cdb_alu_rob_id) begin
-                    Vk_entries[i] <= cdb_alu_value;
-                    Qk_entries[i] <= 0;
-                end
-                if (Qk_entries[i] == cdb_mem_rob_id) begin
-                    Vk_entries[i] <= cdb_mem_value;
-                    Qk_entries[i] <= 0;
-                end
+                `UPDATE_ENTRY_WITH_CDB(
+                    Vj_entries[i], Qj_entries[i],
+                    cdb_alu_rob_id, cdb_alu_value,
+                    cdb_mem_rob_id, cdb_mem_value
+                )
+                `UPDATE_ENTRY_WITH_CDB(
+                    Vk_entries[i], Qk_entries[i],
+                    cdb_alu_rob_id, cdb_alu_value,
+                    cdb_mem_rob_id, cdb_mem_value
+                )
             end
         end
 
