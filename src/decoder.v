@@ -196,8 +196,32 @@ module decoder(
     wire [`ROB_RANGE] rs2_rob_id;
 
     // Assign register query results
-    assign {rs1_value, rs1_rob_id} = query_register(rs1);
-    assign {rs2_value, rs2_rob_id} = query_register(rs2);
+    wire [`ROB_RANGE] regfile_rob_id_rs1 = regfile_rob_id[rs1];
+    assign {rs1_value, rs1_rob_id} =
+        // Check last issued instruction first
+        (rob_enabled && rob_dest == rs1) ? (
+            rob_value_ready ? {rob_value, {`ROB_SIZE_LOG{1'b0}}} :
+                            {32'b0, regfile_rob_id_out}
+        ) : (
+            // Regular register file lookup path
+            (regfile_rob_id_rs1 == 0) ? {regfile_data[rs1], {`ROB_SIZE_LOG{1'b0}}} :
+            (cdb_alu_rob_id == regfile_rob_id_rs1) ? {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}} :
+            (cdb_mem_rob_id == regfile_rob_id_rs1) ? {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}} :
+            (rob_ready[regfile_rob_id_rs1]) ? {rob_value[regfile_rob_id_rs1], {`ROB_SIZE_LOG{1'b0}}} :
+                                            {32'b0, regfile_rob_id_rs1}
+        );
+    wire [`ROB_RANGE] regfile_rob_id_rs2 = regfile_rob_id[rs2];
+    assign {rs2_value, rs2_rob_id} =
+        (rob_enabled && rob_dest == rs2) ? (
+            rob_value_ready ? {rob_value, {`ROB_SIZE_LOG{1'b0}}} :
+                            {32'b0, regfile_rob_id_out}
+        ) : (
+            (regfile_rob_id_rs2 == 0) ? {regfile_data[rs2], {`ROB_SIZE_LOG{1'b0}}} :
+            (cdb_alu_rob_id == regfile_rob_id_rs2) ? {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}} :
+            (cdb_mem_rob_id == regfile_rob_id_rs2) ? {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}} :
+            (rob_ready[regfile_rob_id_rs2]) ? {rob_value[regfile_rob_id_rs2], {`ROB_SIZE_LOG{1'b0}}} :
+                                            {32'b0, regfile_rob_id_rs2}
+        );
 
     // Branch dependency query results
     wire [`ROB_RANGE] new_last_branch_id;
@@ -474,31 +498,28 @@ module decoder(
     // Function to query register value and ROB ID
     function [32+`ROB_RANGE] query_register;
         input [4:0] reg_num;
-        reg [31:0] value;
         reg [`ROB_RANGE] rob_id_out;
         begin
             // Check last issued instruction first
             if (rob_enabled && rob_dest == reg_num) begin
                 if (rob_value_ready)
-                    {value, rob_id_out} = {rob_value, {`ROB_SIZE_LOG{1'b0}}};
+                    query_register = {rob_value, {`ROB_SIZE_LOG{1'b0}}};
                 else
-                    {value, rob_id_out} = {32'b0, regfile_rob_id_out};
-            end
-            else begin
+                    query_register = {32'b0, regfile_rob_id_out};
+            end else begin
                 rob_id_out = regfile_rob_id[reg_num];
 
-                if (rob_id_out == 0)
-                    value = regfile_data[reg_num];
-                else if (cdb_alu_rob_id == rob_id_out)
-                    {value, rob_id_out} = {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}};
-                else if (cdb_mem_rob_id == rob_id_out)
-                    {value, rob_id_out} = {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}};
-                else if (rob_ready[rob_id_out])
-                    {value, rob_id_out} = {rob_value[rob_id_out], {`ROB_SIZE_LOG{1'b0}}};
+                if (regfile_rob_id[reg_num] == 0)
+                    query_register = {regfile_data[reg_num], {`ROB_SIZE_LOG{1'b0}}};
+                else if (cdb_alu_rob_id == regfile_rob_id[reg_num])
+                    query_register = {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}};
+                else if (cdb_mem_rob_id == regfile_rob_id[reg_num])
+                    query_register = {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}};
+                else if (rob_ready[regfile_rob_id[reg_num]])
+                    query_register = {rob_value[regfile_rob_id[reg_num]], {`ROB_SIZE_LOG{1'b0}}};
                 else
-                    value = 32'b0;
+                    query_register = {32'b0, rob_id_out};
             end
-            query_register = {value, rob_id_out};
         end
     endfunction
 endmodule
