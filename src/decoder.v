@@ -495,31 +495,4 @@ module decoder(
         end
     endtask
 
-    // Function to query register value and ROB ID
-    function [32+`ROB_RANGE] query_register;
-        input [4:0] reg_num;
-        reg [`ROB_RANGE] rob_id_out;
-        begin
-            // Check last issued instruction first
-            if (rob_enabled && rob_dest == reg_num) begin
-                if (rob_value_ready)
-                    query_register = {rob_value, {`ROB_SIZE_LOG{1'b0}}};
-                else
-                    query_register = {32'b0, regfile_rob_id_out};
-            end else begin
-                rob_id_out = regfile_rob_id[reg_num];
-
-                if (regfile_rob_id[reg_num] == 0)
-                    query_register = {regfile_data[reg_num], {`ROB_SIZE_LOG{1'b0}}};
-                else if (cdb_alu_rob_id == regfile_rob_id[reg_num])
-                    query_register = {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}};
-                else if (cdb_mem_rob_id == regfile_rob_id[reg_num])
-                    query_register = {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}};
-                else if (rob_ready[regfile_rob_id[reg_num]])
-                    query_register = {rob_value[regfile_rob_id[reg_num]], {`ROB_SIZE_LOG{1'b0}}};
-                else
-                    query_register = {32'b0, rob_id_out};
-            end
-        end
-    endfunction
 endmodule

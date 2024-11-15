@@ -315,13 +315,23 @@ module load_store_unit(
     localparam IDLE = 2'd0;
     localparam LOADING = 2'd1;
     localparam STORING = 2'd2;
+    localparam LOAD_FINISH = 2'd3;
 
     reg [1:0] state;
     reg [1:0] bytes_left; // Counter for remaining bytes
     reg [2:0] func3;
-    reg [31:0] base_addr; // Base address of operation
+    wire [31:0] base_addr; // Base address of operation
     reg [31:0] data_buffer; // Buffer for multi-byte operations
+    wire [31:0] new_data; // Updated data buffer
     reg [`ROB_RANGE] current_rob; // Store ROB ID for current operation
+    reg last_load_success; // Whether the last load operation is successful
+
+    assign base_addr = rs1 + {{20{offset[11]}}, offset};
+
+    // Continuous assignments for memory interface
+    assign mem_wr = (state == STORING);
+    assign new_data = {mem_din, data_buffer[31:8]};
+    assign mem_dout = data_buffer[7:0];
 
     always @(posedge clk_in) begin
         if (flush_input) begin
@@ -334,7 +344,6 @@ module load_store_unit(
             case (state)
                 IDLE: begin
                     if (typ || op) begin // New operation received
-                        base_addr <= rs1 + {{20{offset[11]}}, offset};
                         current_rob <= dest;
 
                         case (op)
@@ -358,9 +367,11 @@ module load_store_unit(
                         end else begin // Load operation
                             state <= LOADING;
                             data_buffer <= 0;
+                            last_load_success <= 0;
                         end
 
                         mem_en <= 1;
+                        mem_addr <= base_addr;
                         recv <= 1;
                         rob_id <= 0;
                     end else begin
@@ -371,32 +382,43 @@ module load_store_unit(
                 end
 
                 LOADING: begin
+                    if (last_load_success) begin
+                        // mem_success is returned in the next cycle, but the data arrives in the cycle after that
+                        data_buffer <= new_data;
+                    end
                     if (mem_success) begin
-                        data_buffer <= {mem_din, data_buffer[31:8]};
-
+                        last_load_success <= 1;
                         if (bytes_left == 0) begin
-                            state <= IDLE;
+                            // still needs to wait for the last byte
+                            state <= LOAD_FINISH;
                             mem_en <= 0;
-                            rob_id <= current_rob;
-
-                            // Sign extension based on operation
-                            case (func3)
-                                3'b000: // LB
-                                    value <= {{24{data_buffer[7]}}, data_buffer[7:0]};
-                                3'b001: // LH
-                                    value <= {{16{data_buffer[15]}}, data_buffer[15:0]};
-                                3'b010: // LW
-                                    value <= data_buffer;
-                                3'b100: // LBU
-                                    value <= {24'b0, data_buffer[7:0]};
-                                3'b101: // LHU
-                                    value <= {16'b0, data_buffer[15:0]};
-                            endcase
                         end else begin
                             bytes_left <= bytes_left - 1;
                             mem_addr <= mem_addr + 1;
                         end
+                    end else begin
+                        last_load_success <= 0;
                     end
+                    recv <= 0;
+                end
+
+                LOAD_FINISH: begin
+                    state <= IDLE;
+                    rob_id <= current_rob;
+
+                    // Sign extension based on operation
+                    case (func3)
+                        3'b000: // LB
+                            value <= {{24{new_data[7]}}, new_data[7:0]};
+                        3'b001: // LH
+                            value <= {{16{new_data[15]}}, new_data[15:0]};
+                        3'b010: // LW
+                            value <= new_data;
+                        3'b100: // LBU
+                            value <= {24'b0, new_data[7:0]};
+                        3'b101: // LHU
+                            value <= {16'b0, new_data[15:0]};
+                    endcase
                 end
 
                 STORING: begin
@@ -410,26 +432,12 @@ module load_store_unit(
                             bytes_left <= bytes_left - 1;
                             mem_addr <= mem_addr + 1;
                             data_buffer <= {8'b0, data_buffer[31:8]};
-                            mem_dout <= data_buffer[7:0];
                         end
                     end
+                    recv <= 0;
                 end
             endcase
         end
     end
 
-    // Continuous assignments for memory interface
-    always @(*) begin
-        if (state == STORING) begin
-            mem_wr = 1;
-            mem_dout = data_buffer[7:0];
-        end else begin
-            mem_wr = 0;
-            mem_dout = 8'b0;
-        end
-
-        if (state == IDLE) begin
-            mem_addr = base_addr;
-        end
-    end
 endmodule
