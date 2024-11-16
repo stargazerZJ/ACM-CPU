@@ -45,7 +45,7 @@ module rob(
 
     // Output to Decoder
     output wire [31:0] decoder_value [`ROB_ARR],
-    output wire decoder_ready [`ROB_ARR],
+    output wire [`ROB_ARR] decoder_ready,
 
     // Status outputs
     output wire has_no_vacancy,    // whether the ROB is full
@@ -60,7 +60,7 @@ module rob(
 // Internal registers for ROB entries
 reg busy [`ROB_ARR];
 reg [1:0] op [`ROB_ARR]; // 00 for jalr, 01 for branch, 10 for others, 11 for special halt instruction
-reg value_ready [`ROB_ARR]; // 1 for value acquired, 0 otherwise
+reg [`ROB_ARR] value_ready; // 1 for value acquired, 0 otherwise
 reg [31:0] value [`ROB_ARR]; // for jalr, the jump address; for branch and others, the value to write to the register
 reg [31:0] alt_value [`ROB_ARR]; // for jalr, pc + 4; for branch, pc of the branch; for others, unused
 reg [4:0] dest [`ROB_ARR]; // the register to store the value
@@ -69,15 +69,15 @@ reg pred_branch_taken [`ROB_ARR];
 
 reg [`ROB_RANGE] head, tail;
 
-wire operation_value_ready = operation_status ||
-                           (operation_dest == cdb_alu_rob_id) ||
-                           (operation_dest == cdb_mem_rob_id) ||
-                           (operation_dest == bcu_rob_id);
+wire operation_value_ready = operation_status;
+                        //    (next_tail_output == cdb_alu_rob_id) ||
+                        //    (next_tail_output == cdb_mem_rob_id) ||
+                        //    (next_tail_output == bcu_rob_id);
 
 wire [31:0] new_operation_value =
-    (operation_dest == cdb_alu_rob_id) ? cdb_alu_value :
-    (operation_dest == cdb_mem_rob_id) ? cdb_mem_value :
-    (operation_dest == bcu_rob_id) ? bcu_value :
+    // (next_tail_output == cdb_alu_rob_id) ? cdb_alu_value :
+    // (next_tail_output == cdb_mem_rob_id) ? cdb_mem_value :
+    // (next_tail_output == bcu_rob_id) ? bcu_value :
     operation_value;
 
 // Helper function to calculate next tail position

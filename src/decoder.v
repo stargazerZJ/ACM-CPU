@@ -15,7 +15,7 @@ module decoder(
 
     // Input from ROB
     input wire [31:0] rob_values [`ROB_ARR],
-    input wire rob_ready [`ROB_ARR],
+    input wire [`ROB_ARR] rob_ready,
 
     // CDB Input (ALU)
     input wire [`ROB_RANGE] cdb_alu_rob_id,
@@ -122,6 +122,7 @@ module decoder(
             disable_all_outputs();
         end
         else begin
+            last_branch_id <= new_last_branch_id;
             case (state)
                 STATE_SKIP_ONE_CYCLE: begin
                     state <= STATE_TRY_TO_ISSUE;
@@ -153,8 +154,9 @@ module decoder(
                         disable_all_outputs();
                     end
                 end
-
             endcase
+
+            // last_branch_id <= (opcode == 7'b1100011) ? rob_id : new_last_branch_id;
         end
     end
 
@@ -207,7 +209,7 @@ module decoder(
             (regfile_rob_id_rs1 == 0) ? {regfile_data[rs1], {`ROB_SIZE_LOG{1'b0}}} :
             (cdb_alu_rob_id == regfile_rob_id_rs1) ? {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}} :
             (cdb_mem_rob_id == regfile_rob_id_rs1) ? {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}} :
-            (rob_ready[regfile_rob_id_rs1]) ? {rob_value[regfile_rob_id_rs1], {`ROB_SIZE_LOG{1'b0}}} :
+            (rob_ready[regfile_rob_id_rs1]) ? {rob_values[regfile_rob_id_rs1], {`ROB_SIZE_LOG{1'b0}}} :
                                             {32'b0, regfile_rob_id_rs1}
         );
     wire [`ROB_RANGE] regfile_rob_id_rs2 = regfile_rob_id[rs2];
@@ -219,14 +221,14 @@ module decoder(
             (regfile_rob_id_rs2 == 0) ? {regfile_data[rs2], {`ROB_SIZE_LOG{1'b0}}} :
             (cdb_alu_rob_id == regfile_rob_id_rs2) ? {cdb_alu_value, {`ROB_SIZE_LOG{1'b0}}} :
             (cdb_mem_rob_id == regfile_rob_id_rs2) ? {cdb_mem_value, {`ROB_SIZE_LOG{1'b0}}} :
-            (rob_ready[regfile_rob_id_rs2]) ? {rob_value[regfile_rob_id_rs2], {`ROB_SIZE_LOG{1'b0}}} :
+            (rob_ready[regfile_rob_id_rs2]) ? {rob_values[regfile_rob_id_rs2], {`ROB_SIZE_LOG{1'b0}}} :
                                             {32'b0, regfile_rob_id_rs2}
         );
 
     // Branch dependency query results
     wire [`ROB_RANGE] new_last_branch_id;
     // Update last_branch_id on commit
-    assign new_last_branch_id = (cdb_alu_rob_id == last_branch_id) ? 0 : last_branch_id;
+    assign new_last_branch_id = (commit_rob_id == last_branch_id) ? 0 : last_branch_id;
 
     task issue_instruction;
     begin
@@ -266,15 +268,13 @@ module decoder(
                 end
 
                 7'b1100111: begin // JALR
-                    if (rs1 == 5'd1 && imm_i == 12'b0 && rd == 5'd0) begin
-                        // RET instruction
-                        if (rs1_rob_id == 0) begin
-                            write_rob(2'b10, 1'b1, next_program_counter, 32'b0, 5'd0, 1'b0);
-                            fetcher_enabled <= 1;
-                            fetcher_pc <= rs1_value;
-                            state <= STATE_SKIP_ONE_CYCLE;
-                            disable_outputs_except(ENABLE_ROB | ENABLE_FETCH);
-                        end
+                    if (imm_i == 12'b0 && rd == 5'd0 && rs1_rob_id == 0) begin
+                        // JR instruction with no dependencies
+                        write_rob(2'b10, 1'b1, next_program_counter, 32'b0, 5'd0, 1'b0);
+                        fetcher_enabled <= 1;
+                        fetcher_pc <= rs1_value;
+                        state <= STATE_SKIP_ONE_CYCLE;
+                        disable_outputs_except(ENABLE_ROB | ENABLE_FETCH);
                     end else if (rs_alu_full) begin
                         issue_failure();
                     end else begin
@@ -299,7 +299,7 @@ module decoder(
                         fetcher_enabled <= 1;
                         fetcher_pc <= branch_predicted_pc;
                         state <= STATE_SKIP_ONE_CYCLE;
-                        last_branch_id <= rob_id;
+                        last_branch_id <= rob_id; // done in the main state machine
 
                         disable_outputs_except(ENABLE_ROB | ENABLE_BCU | ENABLE_FETCH);
                     end
@@ -338,7 +338,7 @@ module decoder(
                         rs_mem_store_Vk <= rs2_value;
                         rs_mem_store_Qj <= rs1_rob_id;
                         rs_mem_store_Qk <= rs2_rob_id;
-                        rs_mem_store_Qm <= last_branch_id;
+                        rs_mem_store_Qm <= new_last_branch_id;
                         rs_mem_store_dest <= rob_id;
                         rs_mem_store_offset <= imm_s;
 

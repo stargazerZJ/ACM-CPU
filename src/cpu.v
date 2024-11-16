@@ -325,7 +325,7 @@ module cpu (
     wire rob_flush;
     wire [`ROB_RANGE] rob_commit_id;
     wire [31:0] rob_decoder_value [`ROB_ARR];
-    wire rob_decoder_ready [`ROB_ARR];
+    wire [`ROB_ARR] rob_decoder_ready;
 
     // ROB
     rob reorder_buffer(
