@@ -28,7 +28,8 @@ build_sim_test: testcases _no_testcase_name_check
 	@cp $(SIM_TESTCASE_DIR)/*$(name)*.c $(TESTSPACE_DIR)/test.c
 	@cp $(SIM_TESTCASE_DIR)/*$(name)*.data $(TESTSPACE_DIR)/test.data
 	@cp $(SIM_TESTCASE_DIR)/*$(name)*.dump $(TESTSPACE_DIR)/test.dump
-	@cp $(SIM_TESTCASE_DIR)/*$(name)*.ans $(TESTSPACE_DIR)/test.ans
+	@rm -f $(TESTSPACE_DIR)/test.ans
+	@find $(SIM_TESTCASE_DIR) -name '*$(name)*.ans' -exec cp {} $(TESTSPACE_DIR)/test.ans \;
 
 
 build_fpga_test: testcases _no_testcase_name_check
@@ -41,10 +42,8 @@ build_fpga_test: testcases _no_testcase_name_check
 	@find $(FPGA_TESTCASE_DIR) -name '*$(name)*.ans' -exec cp {} $(TESTSPACE_DIR)/test.ans \;
 
 run_sim: build_sim build_sim_test
-	cd $(TESTSPACE_DIR) && ./test
-# add your own test script here
-# Example:
-#	diff ./test/test.ans ./test/test.out
+	@cd $(TESTSPACE_DIR) && ./test
+	@diff $(TESTSPACE_DIR)/test.ans $(TESTSPACE_DIR)/test.out
 
 
 fpga_device := /dev/ttyUSB1
