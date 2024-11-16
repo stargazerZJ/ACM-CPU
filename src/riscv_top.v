@@ -32,7 +32,7 @@ begin
 		rst			<=	1'b1;
 		rst_delay	<=	1'b1;
 	end
-	else 
+	else
 	begin
 		rst_delay	<=	1'b0;
 		rst			<=	rst_delay;
@@ -106,7 +106,7 @@ cpu cpu0(
 	.mem_dout(cpu_ram_dout),
 	.mem_a(cpu_ram_a),
 	.mem_wr(cpu_ram_wr),
-	
+
 	.io_buffer_full(hci_io_full),
 
 	.dbgreg_dout(cpu_dbgreg_dout)
@@ -132,7 +132,7 @@ hci #(.SYS_CLK_FREQ(SYS_CLK_FREQ),
 	.io_wr(hci_io_wr),
 	.io_full(hci_io_full),
 
-	.program_finish(program_finish), 
+	.program_finish(program_finish),
 
 	.cpu_dbgreg_din(cpu_dbgreg_dout)	// demo
 );
