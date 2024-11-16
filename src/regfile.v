@@ -50,7 +50,7 @@ always @(posedge clk_in) begin
             register_data[from_rob_reg_id] <= from_rob_data;
             // Only update if Decoder is not simultaneously writing to the same register
             if (!from_decoder_write_enabled || from_rob_reg_id != from_decoder_reg_id) begin
-                if (from_rob_rob_id == from_rob_rob_id) begin
+                if (from_rob_rob_id == register_rob_id[from_rob_reg_id]) begin
                     register_rob_id[from_rob_reg_id] <= 0;
                 end
             end
