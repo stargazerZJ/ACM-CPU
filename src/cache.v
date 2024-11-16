@@ -22,7 +22,7 @@ module instruction_cache (
     reg [`I_CACHE_SIZE_LOG+1:0] fill_index;
     reg cache_valid;
     reg last_load_success;
-    wire[31:0] new_start_pos = {req_pc[31:`I_CACHE_SIZE_LOG], {`I_CACHE_SIZE_LOG{1'b0}}};
+    wire[31:0] new_start_pos = {req_pc[31:`I_CACHE_SIZE_LOG+1], 1'b0, {`I_CACHE_SIZE_LOG{1'b0}}};
     wire [`I_CACHE_SIZE_LOG+1:0] cache_index = {1'b0, req_pc[`I_CACHE_SIZE_LOG:0]};
 
     always @(posedge clk_in) begin
