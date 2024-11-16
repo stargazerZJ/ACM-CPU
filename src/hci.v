@@ -217,6 +217,11 @@ always @*
       end
   end
 
+integer output_file;
+initial begin
+  output_file = $fopen("test.out", "w");
+end
+
 always @*
   begin
     // Setup default FF updates.
@@ -249,8 +254,7 @@ always @*
               d_tx_data = io_din;
               d_wr_en   = 1'b1;
             end
-            // $display("IO:out:%x",io_din);
-            $write("%c", io_din);
+            $fwrite(output_file, "%c", io_din);
           end
           3'h4: begin      // 0x30004 write: indicates program stop
             if (!tx_full) begin
