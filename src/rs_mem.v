@@ -409,15 +409,15 @@ module load_store_unit(
                     // Sign extension based on operation
                     case (func3)
                         3'b000: // LB
-                            value <= {{24{new_data[7]}}, new_data[7:0]};
+                            value <= {{24{new_data[31]}}, new_data[31:24]};
                         3'b001: // LH
-                            value <= {{16{new_data[15]}}, new_data[15:0]};
+                            value <= {{16{new_data[31]}}, new_data[31:16]};
                         3'b010: // LW
                             value <= new_data;
                         3'b100: // LBU
-                            value <= {24'b0, new_data[7:0]};
+                            value <= {24'b0, new_data[31:24]};
                         3'b101: // LHU
-                            value <= {16'b0, new_data[15:0]};
+                            value <= {16'b0, new_data[31:16]};
                     endcase
                 end
 
