@@ -201,7 +201,7 @@ module decoder(
     wire [`ROB_RANGE] regfile_rob_id_rs1 = regfile_rob_id[rs1];
     assign {rs1_value, rs1_rob_id} =
         // Check last issued instruction first
-        (rob_enabled && rob_dest == rs1) ? (
+        (rob_enabled && rob_dest == rs1 && rs1 != 3'b0) ? (
             rob_value_ready ? {rob_value, {`ROB_SIZE_LOG{1'b0}}} :
                             {32'b0, regfile_rob_id_out}
         ) : (
@@ -214,7 +214,7 @@ module decoder(
         );
     wire [`ROB_RANGE] regfile_rob_id_rs2 = regfile_rob_id[rs2];
     assign {rs2_value, rs2_rob_id} =
-        (rob_enabled && rob_dest == rs2) ? (
+        (rob_enabled && rob_dest == rs2 && rs2 != 3'b0) ? (
             rob_value_ready ? {rob_value, {`ROB_SIZE_LOG{1'b0}}} :
                             {32'b0, regfile_rob_id_out}
         ) : (
