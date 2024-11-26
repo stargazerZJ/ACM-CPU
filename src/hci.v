@@ -217,10 +217,12 @@ always @*
       end
   end
 
+`ifndef ONLINE_JUDGE
 integer output_file;
 initial begin
   output_file = $fopen("test.out", "w");
 end
+`endif
 
 always @*
   begin
@@ -254,7 +256,11 @@ always @*
               d_tx_data = io_din;
               d_wr_en   = 1'b1;
             end
+`ifdef ONLINE_JUDGE
+            $write("%c", io_din);
+`else
             $fwrite(output_file, "%c", io_din);
+`endif
           end
           3'h4: begin      // 0x30004 write: indicates program stop
             if (!tx_full) begin
@@ -263,8 +269,10 @@ always @*
             end
             d_state = S_DECODE;
             d_program_finish = 1'b1;
+`ifndef ONLINE_JUDGE
             $display("IO:Return");
-            $finish;
+`endif
+            $finish(0);
           end
         endcase
       end else begin
