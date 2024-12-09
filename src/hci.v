@@ -120,7 +120,8 @@ reg  [ 7:0] q_io_dout, d_io_dout;
 
 // Input Buffer
 fifo #(.DATA_BITS(8),
-       .ADDR_BITS(IO_IN_BUF_WIDTH)) io_in_fifo
+       .ADDR_BITS(IO_IN_BUF_WIDTH),
+       .INIT_FROM_FILE(1)) io_in_fifo
 (
   .clk(clk),
   .reset(rst),
@@ -144,6 +145,11 @@ reg  [31:0] q_cpu_cycle_cnt;
 wire [31:0] d_cpu_cycle_cnt;
 assign d_cpu_cycle_cnt = active ? q_cpu_cycle_cnt : q_cpu_cycle_cnt + 1'b1;
 reg d_program_finish;
+
+// SIM OUTPUT
+reg  [7:0] sim_out;
+reg        sim_out_en;
+
 
 // Update FF state.
 always @(posedge clk)
@@ -182,6 +188,27 @@ always @(posedge clk)
       end
   end
 
+
+always @(posedge clk) begin
+  if (!rst) begin
+    // output
+    if (sim_out_en) begin
+`ifdef ONLINE_JUDGE
+        $write("%c", sim_out);
+`else
+        fwrite(output_file, "%c", sim_out);
+`endif
+    end
+    // shutdown
+    if (d_program_finish) begin
+      `ifndef ONLINE_JUDGE
+      $display("IO:Return");
+      `endif
+      $finish(0);
+    end
+  end
+end
+
 // Instantiate the serial controller block.
 uart #(.SYS_CLK_FREQ(SYS_CLK_FREQ),
        .BAUD_RATE(BAUD_RATE),
@@ -217,13 +244,6 @@ always @*
       end
   end
 
-`ifndef ONLINE_JUDGE
-integer output_file;
-initial begin
-  output_file = $fopen("test.out", "w");
-end
-`endif
-
 always @*
   begin
     // Setup default FF updates.
@@ -236,6 +256,9 @@ always @*
     rd_en         = 1'b0;
     d_tx_data     = 8'h00;
     d_wr_en       = 1'b0;
+
+    sim_out    = 8'h00;
+    sim_out_en = 1'b0;
 
     // Setup default output regs.
     ram_wr    = 1'b0;
@@ -256,11 +279,8 @@ always @*
               d_tx_data = io_din;
               d_wr_en   = 1'b1;
             end
-`ifdef ONLINE_JUDGE
-            $write("%c", io_din);
-`else
-            $fwrite(output_file, "%c", io_din);
-`endif
+            sim_out = io_din;
+            sim_out_en = 1'b1;
           end
           3'h4: begin      // 0x30004 write: indicates program stop
             if (!tx_full) begin
@@ -269,10 +289,6 @@ always @*
             end
             d_state = S_DECODE;
             d_program_finish = 1'b1;
-`ifndef ONLINE_JUDGE
-            $display("IO:Return");
-`endif
-            $finish(0);
           end
         endcase
       end else begin

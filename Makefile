@@ -39,8 +39,9 @@ build_sim_test: _no_testcase_name_check
 	@cp $(SIM_TESTCASE_DIR)/*$(name)*.c $(TESTSPACE_DIR)/test.c
 	@cp $(SIM_TESTCASE_DIR)/*$(name)*.data $(TESTSPACE_DIR)/test.data
 	@cp $(SIM_TESTCASE_DIR)/*$(name)*.dump $(TESTSPACE_DIR)/test.dump
-	@rm -f $(TESTSPACE_DIR)/test.ans
-	@find $(SIM_TESTCASE_DIR) -name '*$(name)*.ans' -exec cp {} $(TESTSPACE_DIR)/test.ans \;
+	@rm -f $(TESTSPACE_DIR)/test.in $(TESTSPACE_DIR)/test.ans
+	@find $(FPGA_TESTCASE_DIR) -name '*$(name)*.in' -exec cp {} $(TESTSPACE_DIR)/test.in \;
+	@find $(FPGA_TESTCASE_DIR) -name '*$(name)*.ans' -exec cp {} $(TESTSPACE_DIR)/test.ans \;
 
 
 build_fpga_test: testcases _no_testcase_name_check
