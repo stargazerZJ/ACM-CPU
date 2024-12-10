@@ -52,6 +52,7 @@ module cpu (
     mem_controller mem_ctrl(
         .clk_in(clk_in),
         .mem_din(mem_din),
+        .mem_valid(~io_buffer_full),
         .mem_dout(mem_dout),
         .mem_a(mem_a),
         .mem_wr(mem_wr),

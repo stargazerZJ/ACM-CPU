@@ -91,6 +91,7 @@ module mem_controller (
 
     // Memory interface
     input wire [7:0] mem_din,
+    input wire mem_valid,
     output wire [7:0] mem_dout,
     output wire [31:0] mem_a,
     output wire mem_wr,
@@ -123,12 +124,12 @@ assign mem_dout = lsb_data;
 assign lsb_read_data = mem_din;
 
 // LSB valid signal
-assign lsb_valid = lsb_en;
+assign lsb_valid = mem_valid && lsb_en;
 
 // ICache read data
 assign icache_data = mem_din;
 
 // ICache valid signal
-assign icache_data_valid = icache_en && !lsb_en;
+assign icache_data_valid = icache_en && !lsb_en && mem_valid;
 
 endmodule
