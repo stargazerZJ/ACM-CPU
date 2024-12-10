@@ -7,6 +7,7 @@ module decoder(
     input wire instruction_valid,
     input wire [31:0] fetcher_instruction,
     input wire [31:0] fetcher_program_counter,
+    input wire fetcher_instruction_compressed,
     input wire fetcher_predicted_branch_taken,
 
     // Input from RegFile
@@ -109,6 +110,7 @@ module decoder(
     reg [31:0] last_instruction;
     reg [31:0] last_program_counter;
     reg last_predicted_branch_taken;
+    reg last_instruction_compressed;
 
     // Main state machine
     always @(posedge clk_in) begin
@@ -166,6 +168,7 @@ module decoder(
     wire [31:0] instruction = (state == STATE_ISSUE_PREVIOUS) ? last_instruction : fetcher_instruction;
     wire [31:0] program_counter = (state == STATE_ISSUE_PREVIOUS) ? last_program_counter : fetcher_program_counter;
     wire predicted_branch_taken = (state == STATE_ISSUE_PREVIOUS) ? last_predicted_branch_taken : fetcher_predicted_branch_taken;
+    wire instruction_compressed = (state == STATE_ISSUE_PREVIOUS) ? last_instruction_compressed : fetcher_instruction_compressed;
 
     // Instruction decode wires
     wire [6:0] opcode = instruction[6:0];
@@ -183,7 +186,7 @@ module decoder(
     wire [20:0] imm_j = {instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
 
     // Common computed values
-    wire [31:0] next_program_counter = program_counter + 32'd4;
+    wire [31:0] next_program_counter = instruction_compressed ? program_counter + 2 : program_counter + 4;
     wire signed [31:0] imm_i_signed = {{20{imm_i[11]}}, imm_i};
     wire signed [31:0] imm_b_signed = {{19{imm_b[12]}}, imm_b};
     wire signed [31:0] imm_j_signed = {{11{imm_j[20]}}, imm_j};
@@ -395,6 +398,7 @@ module decoder(
         last_instruction <= instruction;
         last_program_counter <= program_counter;
         last_predicted_branch_taken <= predicted_branch_taken;
+        last_instruction_compressed <= instruction_compressed;
     end
     endtask
 

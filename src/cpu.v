@@ -72,6 +72,7 @@ module cpu (
     wire [31:0] inst_out;
     wire [31:0] program_counter;
     wire ifu_valid_out;
+    wire ifu_compressed_out;
     wire pred_branch_taken;
     wire [31:0] rob_pc;
     wire rob_pc_valid;
@@ -99,6 +100,7 @@ module cpu (
         .inst_out(inst_out),
         .program_counter(program_counter),
         .valid_out(ifu_valid_out),
+        .compressed_out(ifu_compressed_out),
         .pred_branch_taken(pred_branch_taken)
     );
 
@@ -375,6 +377,7 @@ module cpu (
         .instruction_valid(ifu_valid_out),
         .fetcher_instruction(inst_out),
         .fetcher_program_counter(program_counter),
+        .fetcher_instruction_compressed(ifu_compressed_out),
         .fetcher_predicted_branch_taken(pred_branch_taken),
         .regfile_rob_id(regfile_rob_id),
         .regfile_data(regfile_data),

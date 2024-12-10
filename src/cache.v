@@ -8,6 +8,7 @@ module instruction_cache (
     input wire [31:0] req_pc,    // PC requested by fetcher
     output reg [31:0] inst_out,  // Instruction output
     output reg valid_out,        // Whether output is valid
+    output reg compressed_out,   // Whether output is compressed
 
     // Interface with memory controller
     input wire [7:0] mem_byte,   // Byte from memory
@@ -24,6 +25,20 @@ module instruction_cache (
     reg last_load_success;
     wire[31:0] new_start_pos = {req_pc[31:`I_CACHE_SIZE_LOG+1], 1'b0, {`I_CACHE_SIZE_LOG{1'b0}}};
     wire [`I_CACHE_SIZE_LOG+1:0] cache_index = {1'b0, req_pc[`I_CACHE_SIZE_LOG:0]};
+    wire [31:0] instruction_raw = {
+        cache_data[cache_index + 3],
+        cache_data[cache_index + 2],
+        cache_data[cache_index + 1],
+        cache_data[cache_index]
+    };
+    wire is_compressed = (instruction_raw[1:0] != 2'b11);
+    wire [31:0] instruction_decompressed;
+    wire [31:0] instruction = is_compressed ? instruction_decompressed : instruction_raw;
+    decompression decompressor(
+        .inst_c(instruction_raw[15:0]),
+        .inst_out(instruction_decompressed)
+    );
+
 
     always @(posedge clk_in) begin
         if (rst_in) begin
@@ -57,12 +72,8 @@ module instruction_cache (
             if (req_pc >= start_pos &&
                         req_pc < start_pos + `I_CACHE_SIZE * 2) begin
                 valid_out <= (req_pc + 4 < current_fill_pos) ? 1'b1 : 1'b0;
-                inst_out <= {
-                    cache_data[cache_index + 3],
-                    cache_data[cache_index + 2],
-                    cache_data[cache_index + 1],
-                    cache_data[cache_index]
-                };
+                inst_out <= instruction;
+                compressed_out <= is_compressed;
             end else begin
                 // Cache miss - start new fill
                 start_pos <= new_start_pos;

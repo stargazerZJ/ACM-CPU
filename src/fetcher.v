@@ -22,6 +22,7 @@ module instruction_fetch_unit (
     output wire [31:0] inst_out,  // Instruction output
     output reg [31:0] program_counter,  // Program counter output
     output wire valid_out,        // Whether output is valid
+    output reg compressed_out,   // Whether output is compressed
     output reg pred_branch_taken // Whether branch is predicted taken
 );
 
@@ -29,7 +30,8 @@ wire [31:0] pc;
 
 assign pc = valid_from_rob ? pc_from_rob :
             valid_from_decoder ? pc_from_decoder :
-            valid_out ? program_counter + 4 : program_counter;
+            !valid_out ? program_counter :
+            compressed_out ? program_counter + 2 : program_counter + 4;
 
 instruction_cache icache(
     .clk_in(clk_in),
@@ -37,6 +39,7 @@ instruction_cache icache(
     .req_pc(pc),
     .inst_out(inst_out),
     .valid_out(valid_out),
+    .compressed_out(compressed_out),
     .mem_byte(mem_byte),
     .mem_valid(mem_valid),
     .mem_en(mem_en),
