@@ -188,6 +188,12 @@ always @(posedge clk)
       end
   end
 
+`ifndef ONLINE_JUDGE
+integer output_file;
+initial begin
+  output_file = $fopen("test.out", "w");
+end
+`endif
 
 always @(posedge clk) begin
   if (!rst) begin
@@ -196,7 +202,7 @@ always @(posedge clk) begin
 `ifdef ONLINE_JUDGE
         $write("%c", sim_out);
 `else
-        fwrite(output_file, "%c", sim_out);
+        $fwrite(output_file, "%c", sim_out);
 `endif
     end
     // shutdown
