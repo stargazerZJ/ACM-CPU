@@ -5,6 +5,7 @@ module decompression(
 );
 
     always @ (*) begin
+        inst_out = 32'b0;
         case ({inst_c[15:13], inst_c[1:0]})
             // c.addi4spn
             5'b00000: inst_out = {2'b00, inst_c[10:7], inst_c[12:11], inst_c[5], inst_c[6], 2'b00, 5'd2, 3'b000, 2'b01, inst_c[4:2], 7'b0010011};
