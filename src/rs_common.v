@@ -118,31 +118,43 @@ module __find_first(
     output wire [3:0] index,
     output wire has_entry
 );
-    reg [3:0] result;
-    assign has_entry = |entries; // OR reduction - true if any entry is 1
+    // OR reduction - true if any entry is 1
+    assign has_entry = |entries;
 
-    // Priority encoder implementation
-    always @(*) begin
-        casez (entries)
-            16'b???????????????1: result = 4'd0;
-            16'b??????????????10: result = 4'd1;
-            16'b?????????????100: result = 4'd2;
-            16'b????????????1000: result = 4'd3;
-            16'b???????????10000: result = 4'd4;
-            16'b??????????100000: result = 4'd5;
-            16'b?????????1000000: result = 4'd6;
-            16'b????????10000000: result = 4'd7;
-            16'b???????100000000: result = 4'd8;
-            16'b??????1000000000: result = 4'd9;
-            16'b?????10000000000: result = 4'd10;
-            16'b????100000000000: result = 4'd11;
-            16'b???1000000000000: result = 4'd12;
-            16'b??10000000000000: result = 4'd13;
-            16'b?100000000000000: result = 4'd14;
-            16'b1000000000000000: result = 4'd15;
-            default: result = 4'd0;
-        endcase
-    end
+    // Break down the logic bit by bit
+    // result[3] is 1 if first '1' is in upper 8 bits
+    // result[2] is 1 if first '1' is in upper half of the relevant 8 bits
+    // result[1] is 1 if first '1' is in upper half of the relevant 4 bits
+    // result[0] is 1 if first '1' is in upper half of the relevant 2 bits
+
+    wire [3:0] result;
+
+    // Most significant bit (bit 3)
+    // '1' if first occurrence is in upper 8 bits [15:8]
+    assign result[3] = ~|entries[7:0] & |entries[15:8];
+
+    // Bit 2
+    // Check upper/lower 4 bits in the relevant 8-bit section
+    wire [7:0] relevant_byte = result[3] ? entries[15:8] : entries[7:0];
+    assign result[2] = ~|relevant_byte[3:0] & |relevant_byte[7:4];
+
+    // Bit 1
+    // Check upper/lower 2 bits in the relevant 4-bit section
+    wire [3:0] relevant_nibble = result[2] ?
+                                (result[3] ? entries[15:12] : entries[7:4]) :
+                                (result[3] ? entries[11:8]  : entries[3:0]);
+    assign result[1] = ~|relevant_nibble[1:0] & |relevant_nibble[3:2];
+
+    // Least significant bit (bit 0)
+    // Check upper/lower bit in the relevant 2-bit section
+    wire [1:0] relevant_bits = result[1] ?
+                              (result[2] ?
+                               (result[3] ? entries[15:14] : entries[7:6]) :
+                               (result[3] ? entries[11:10] : entries[3:2])) :
+                              (result[2] ?
+                               (result[3] ? entries[13:12] : entries[5:4]) :
+                               (result[3] ? entries[9:8]   : entries[1:0]));
+    assign result[0] = ~relevant_bits[0] & relevant_bits[1];
 
     assign index = result;
 endmodule
