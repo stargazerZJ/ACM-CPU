@@ -6,7 +6,7 @@
 module cpu (
   input  wire                 clk_in,			// system clock signal
   input  wire                 rst_in,			// reset signal
-  input  wire					        rdy_in,			// ready signal, pause cpu when low
+  input  wire			      rdy_in,			// ready signal, pause cpu when low
 
   input  wire [ 7:0]          mem_din,		// data input bus
   output wire [ 7:0]          mem_dout,		// data output bus
@@ -52,7 +52,7 @@ module cpu (
     mem_controller mem_ctrl(
         .clk_in(clk_in),
         .mem_din(mem_din),
-        .mem_valid(~io_buffer_full),
+        .mem_valid(~io_buffer_full && rdy_in),
         .mem_dout(mem_dout),
         .mem_a(mem_a),
         .mem_wr(mem_wr),
@@ -334,6 +334,7 @@ module cpu (
     rob reorder_buffer(
         .clk_in(clk_in),
         .rst_in(rst_in),
+        .rdy_in(rdy_in),
         .operation_enabled(decoder_rob_enabled),
         .operation_op(decoder_rob_op),
         .operation_status(decoder_rob_value_ready),
@@ -374,6 +375,7 @@ module cpu (
     // Decoder
     decoder decoder_unit(
         .clk_in(clk_in),
+        .rdy_in(rdy_in),
         .instruction_valid(ifu_valid_out),
         .fetcher_instruction(inst_out),
         .fetcher_program_counter(program_counter),

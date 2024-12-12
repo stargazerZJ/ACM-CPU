@@ -3,6 +3,7 @@
 module rob(
     input wire clk_in, // system clock signal
     input wire rst_in, // reset signal
+    input wire rdy_in, // ready signal, pause cpu when low
 
     // Operation input
     input wire operation_enabled,
@@ -164,7 +165,7 @@ always @(posedge clk_in) begin
         end
 
         // Commit logic
-        if (busy[head] && value_ready[head]) begin
+        if (rdy_in && busy[head] && value_ready[head]) begin
             case (op[head])
                 2'b00: begin // JALR
                     reg_file_enabled <= 1;

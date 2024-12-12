@@ -2,6 +2,7 @@
 
 module decoder(
     input wire clk_in,  // system clock signal
+    input wire rdy_in,  // ready signal, pause cpu when low
 
     // Input from Fetcher
     input wire instruction_valid,
@@ -235,8 +236,8 @@ module decoder(
 
     task issue_instruction;
     begin
-        // Check ROB full condition first
-        if (rob_full) begin
+        // Check ready and ROB full condition first
+        if (!rdy_in || rob_full) begin
             issue_failure();
         end
         else begin
