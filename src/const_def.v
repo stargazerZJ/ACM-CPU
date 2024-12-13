@@ -12,8 +12,8 @@
 `define ROB_SIZE_LOG  5
 
 // I-Cache-related
-`define I_CACHE_SIZE_LOG  9
-`define I_CACHE_SIZE      512 // `I_CACHE_SIZE entries, 2 bytes per entry
+`define I_CACHE_SIZE_LOG  7
+`define I_CACHE_SIZE      128 // `I_CACHE_SIZE entries, 2 bytes per entry
 
 // CDB-related
 // Macro for checking if CDB value should be used
