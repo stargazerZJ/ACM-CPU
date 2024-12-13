@@ -32,6 +32,7 @@ module instruction_cache (
         cache_data[cache_index]
     };
     wire is_compressed = (instruction_raw[1:0] != 2'b11);
+    assign compressed_out = is_compressed;
     wire [31:0] instruction_decompressed;
     decompression decompressor(
         .clk_in(clk_in),
@@ -72,7 +73,6 @@ module instruction_cache (
             if (req_pc >= start_pos &&
                         req_pc < start_pos + `I_CACHE_SIZE * 2) begin
                 valid_out <= (req_pc + 4 < current_fill_pos) ? 1'b1 : 1'b0;
-                compressed_out <= is_compressed;
             end else begin
                 // Cache miss - start new fill
                 start_pos <= new_start_pos;
@@ -86,13 +86,6 @@ module instruction_cache (
 
     assign mem_en = !cache_valid;
     assign miss_addr = current_fill_pos;
-
-    wire [31:0] debug = {
-        cache_data[cache_index + 3],
-        cache_data[cache_index + 2],
-        cache_data[cache_index + 1],
-        cache_data[cache_index]
-    };
 
 endmodule
 
