@@ -45,6 +45,7 @@ module find_first_ready_load(
     input wire [`RS_ARR] busy,
     input wire [`ROB_RANGE] Qj_entries[`RS_ARR],
     input wire [`ROB_RANGE] Ql_entries[`RS_ARR],
+    input wire [`ROB_RANGE] Qm_entries[`RS_ARR],
     output wire [3:0] ready_index,
     output wire has_ready
 );
@@ -54,7 +55,7 @@ module find_first_ready_load(
     genvar g;
     generate
         for (g = 0; g < 16; g = g + 1) begin : ready_gen
-            assign ready[g] = busy[g] && (Qj_entries[g] == 0) && (Ql_entries[g] == 0);
+            assign ready[g] = busy[g] && (Qj_entries[g] == 0) && (Ql_entries[g] == 0) && (Qm_entries[g] == 0);
         end
     endgenerate
 

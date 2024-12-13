@@ -18,7 +18,7 @@ module reservation_station_mem(
     input wire [31:0] store_Vk,
     input wire [`ROB_RANGE] store_Qj,
     input wire [`ROB_RANGE] store_Qk,
-    input wire [`ROB_RANGE] store_Qm,
+    input wire [`ROB_RANGE] load_store_Qm,
     input wire [`ROB_RANGE] store_dest,
     input wire [11:0] store_offset,
 
@@ -58,6 +58,7 @@ reg [2:0] load_op_entries[`RS_ARR];
 reg [31:0] load_Vj_entries[`RS_ARR];
 reg [`ROB_RANGE] load_Qj_entries[`RS_ARR];
 reg [`ROB_RANGE] load_Ql_entries[`RS_ARR]; // last store operation
+reg [`ROB_RANGE] load_Qm_entries[`RS_ARR]; // last branch operation
 reg [`ROB_RANGE] load_dest_entries[`RS_ARR];
 reg [11:0] load_offset_entries[`RS_ARR];
 
@@ -106,6 +107,7 @@ find_first_ready_load load_ready_finder(
     .busy(load_busy),
     .Qj_entries(load_Qj_entries),
     .Ql_entries(load_Ql_entries),
+    .Qm_entries(load_Qm_entries),
     .ready_index(load_ready_index),
     .has_ready(has_load_ready)
 );
@@ -143,7 +145,7 @@ wire [`ROB_RANGE] store_new_Qj = `GET_NEW_Q(store_Qj, cdb_alu_rob_id, cdb_mem_ro
 wire [`ROB_RANGE] store_new_Qk = `GET_NEW_Q(store_Qk, cdb_alu_rob_id, cdb_mem_rob_id);
 
 wire [`ROB_RANGE] new_Ql = (recv && last_issue_status && last_issue_typ && last_store_id == mem_dest) ? 0 : last_store_id;
-wire [`ROB_RANGE] store_new_Qm = (store_Qm == rob_commit_id) ? 0 : store_Qm;
+wire [`ROB_RANGE] new_Qm = (load_store_Qm == rob_commit_id) ? 0 : load_store_Qm;
 
 integer i;
 always @(posedge clk_in) begin
@@ -186,6 +188,7 @@ always @(posedge clk_in) begin
             load_Vj_entries[load_vacant_index] <= load_new_Vj;
             load_Qj_entries[load_vacant_index] <= load_new_Qj;
             load_Ql_entries[load_vacant_index] <= new_Ql;
+            load_Qm_entries[load_vacant_index] <= (load_Vj[17:16] == 2'b11) ? new_Qm : 0;
             load_dest_entries[load_vacant_index] <= load_dest;
             load_offset_entries[load_vacant_index] <= load_offset;
         end else if (store_enabled && store_has_vacant) begin
@@ -196,7 +199,7 @@ always @(posedge clk_in) begin
             store_Qj_entries[store_vacant_index] <= store_new_Qj;
             store_Qk_entries[store_vacant_index] <= store_new_Qk;
             store_Ql_entries[store_vacant_index] <= new_Ql;
-            store_Qm_entries[store_vacant_index] <= store_new_Qm;
+            store_Qm_entries[store_vacant_index] <= new_Qm;
             store_dest_entries[store_vacant_index] <= store_dest;
             store_offset_entries[store_vacant_index] <= store_offset;
         end
@@ -231,6 +234,11 @@ always @(posedge clk_in) begin
 
         // Update branch dependency
         if (rob_commit_id != 0) begin
+            for (i = 0; i < `RS_SIZE; i = i + 1) begin
+                if (load_Qm_entries[i] == rob_commit_id) begin
+                    load_Qm_entries[i] <= 0;
+                end
+            end
             for (i = 0; i < `RS_SIZE; i = i + 1) begin
                 if (store_busy[i] && store_Qm_entries[i] == rob_commit_id) begin
                     store_Qm_entries[i] <= 0;

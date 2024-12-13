@@ -251,7 +251,7 @@ module cpu (
     wire [2:0] decoder_rs_mem_store_op;
     wire [31:0] decoder_rs_mem_store_Vj, decoder_rs_mem_store_Vk;
     wire [11:0] decoder_rs_mem_store_offset;
-    wire [`ROB_RANGE] decoder_rs_mem_store_Qj, decoder_rs_mem_store_Qk, decoder_rs_mem_store_Qm, decoder_rs_mem_store_dest;
+    wire [`ROB_RANGE] decoder_rs_mem_store_Qj, decoder_rs_mem_store_Qk, decoder_rs_mem_load_store_Qm, decoder_rs_mem_store_dest;
     wire mem_typ;
     wire [2:0] mem_op;
     wire [31:0] mem_Vj, mem_Vk;
@@ -274,7 +274,7 @@ module cpu (
         .store_Vk(decoder_rs_mem_store_Vk),
         .store_Qj(decoder_rs_mem_store_Qj),
         .store_Qk(decoder_rs_mem_store_Qk),
-        .store_Qm(decoder_rs_mem_store_Qm),
+        .load_store_Qm(decoder_rs_mem_load_store_Qm),
         .store_dest(decoder_rs_mem_store_dest),
         .store_offset(decoder_rs_mem_store_offset),
         .cdb_alu_rob_id(cdb_alu_rob_id),
@@ -446,7 +446,7 @@ module cpu (
         .rs_mem_store_Vk(decoder_rs_mem_store_Vk),
         .rs_mem_store_Qj(decoder_rs_mem_store_Qj),
         .rs_mem_store_Qk(decoder_rs_mem_store_Qk),
-        .rs_mem_store_Qm(decoder_rs_mem_store_Qm),
+        .rs_mem_load_store_Qm(decoder_rs_mem_load_store_Qm),
         .rs_mem_store_dest(decoder_rs_mem_store_dest),
         .rs_mem_store_offset(decoder_rs_mem_store_offset),
 

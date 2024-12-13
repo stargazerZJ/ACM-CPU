@@ -88,7 +88,7 @@ module decoder(
     output reg [31:0] rs_mem_store_Vk, // rs2, value
     output reg [`ROB_RANGE] rs_mem_store_Qj,
     output reg [`ROB_RANGE] rs_mem_store_Qk,
-    output reg [`ROB_RANGE] rs_mem_store_Qm, // last branch id
+    output reg [`ROB_RANGE] rs_mem_load_store_Qm, // last branch id
     output reg [`ROB_RANGE] rs_mem_store_dest,
     output reg [11:0] rs_mem_store_offset,
 
@@ -321,6 +321,7 @@ module decoder(
                         rs_mem_load_op <= func3;
                         rs_mem_load_Vj <= rs1_value;
                         rs_mem_load_Qj <= rs1_rob_id;
+                        rs_mem_load_store_Qm <= new_last_branch_id;
                         rs_mem_load_dest <= rob_id;
                         rs_mem_load_offset <= imm_i;
 
@@ -342,7 +343,7 @@ module decoder(
                         rs_mem_store_Vk <= rs2_value;
                         rs_mem_store_Qj <= rs1_rob_id;
                         rs_mem_store_Qk <= rs2_rob_id;
-                        rs_mem_store_Qm <= new_last_branch_id;
+                        rs_mem_load_store_Qm <= new_last_branch_id;
                         rs_mem_store_dest <= rob_id;
                         rs_mem_store_offset <= imm_s;
 
