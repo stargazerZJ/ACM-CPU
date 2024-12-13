@@ -17,75 +17,126 @@ module instruction_cache (
     output reg [31:0] miss_addr  // Address to fetch on miss
 );
 
-    reg [7:0] cache_data [(`I_CACHE_SIZE * 2 + 2) - 1:0];
-    reg [31:0] start_pos;
-    reg [31:0] current_fill_pos;
-    reg [`I_CACHE_SIZE_LOG+1:0] fill_index;
-    reg cache_valid;
+    // Cache organization constants
+    localparam BLOCK_BITS = 4;    // 2^4 + 2 = 18 bytes per block
+    localparam BLOCK_SIZE = 18;  // two extra bytes is because of unaligned 4 byte instruction in RV32IC.
+    localparam WAY_COUNT = 2;    // 2-way associative
+    localparam NUM_BLOCKS = 8;  // Total blocks: 2 * 32 = 64
+    localparam INDEX_BITS = 3;   // log2(NUM_BLOCKS) = 5
+    localparam TAG_BITS = 5;     // 14 - INDEX_BITS - log2(BLOCK_SIZE-2) = 8
+    localparam TOTAL_BITS = TAG_BITS + INDEX_BITS + BLOCK_BITS;
+
+    // Cache storage
+    reg [7:0] data [WAY_COUNT-1:0][NUM_BLOCKS-1:0][BLOCK_SIZE-1:0];
+    reg [TAG_BITS-1:0] tags [WAY_COUNT-1:0][NUM_BLOCKS-1:0];
+    reg valid [WAY_COUNT-1:0][NUM_BLOCKS-1:0];
+    reg lru [NUM_BLOCKS-1:0]; // LRU bits
+
+    // Fill state
+    reg [TOTAL_BITS - 1:0] current_fill_addr;
+    reg [BLOCK_BITS:0] fill_index;
+    reg filling;
+    reg [INDEX_BITS-1:0] fill_block_idx;
+    reg fill_way;
+    wire next_fill_way = lru[req_index];
     reg last_load_success;
-    wire[31:0] new_start_pos = {req_pc[31:`I_CACHE_SIZE_LOG+1], 1'b0, {`I_CACHE_SIZE_LOG{1'b0}}};
-    wire [`I_CACHE_SIZE_LOG+1:0] cache_index = {1'b0, req_pc[`I_CACHE_SIZE_LOG:1], 1'b0};
+
+    // Address breakdown
+    wire [TAG_BITS-1:0] req_tag = req_pc[TAG_BITS + INDEX_BITS + BLOCK_BITS - 1: INDEX_BITS + BLOCK_BITS ];
+    wire [INDEX_BITS-1:0] req_index = req_pc[INDEX_BITS + BLOCK_BITS - 1:BLOCK_BITS];
+    wire [BLOCK_BITS:0] req_offset = {1'b0, req_pc[BLOCK_BITS - 1:1], 1'b0}; // Block offset in bytes
+
+    // Hit detection
+    wire [WAY_COUNT-1:0] hit;
+    assign hit[0] = valid[0][req_index] && (tags[0][req_index] == req_tag);
+    assign hit[1] = valid[1][req_index] && (tags[1][req_index] == req_tag);
+    wire cache_hit = |hit;
+
+    wire way_sel = hit[1] ? 1 : 0;
+
+    // Instruction assembly
     wire [31:0] instruction_raw = {
-        cache_data[cache_index + 3],
-        cache_data[cache_index + 2],
-        cache_data[cache_index + 1],
-        cache_data[cache_index]
+        data[way_sel][req_index][req_offset + 2'b11],
+        data[way_sel][req_index][req_offset + 2'b10],
+        data[way_sel][req_index][req_offset + 1'b1],
+        data[way_sel][req_index][req_offset]
     };
+
     wire is_compressed = (instruction_raw[1:0] != 2'b11);
-    assign compressed_out = is_compressed;
-    wire [31:0] instruction_decompressed;
+
     decompression decompressor(
         .clk_in(clk_in),
         .inst_c(instruction_raw),
         .inst_out(inst_out)
     );
-
+    // integer output_file;
+    // initial begin
+    //   output_file = $fopen("out.log", "w");
+    // end
 
     always @(posedge clk_in) begin
         if (rst_in) begin
-            start_pos <= 32'h0;
-            current_fill_pos <= 32'h0;
-            fill_index <= -1;
-            cache_valid <= 1'b0;
-            last_load_success <= 1'b0;
-            valid_out <= 1'b0;
+            filling <= 0;
+            valid_out <= 0;
+            last_load_success <= 0;
+            // Reset valid bits
+            for (integer j = 0; j < NUM_BLOCKS; j++) begin
+                valid[0][j] <= 0;
+                tags[0][j] <= 0;
+                tags[1][j] <= 0;
+                valid[1][j] <= 0;
+                lru[j] <= 0;
+            end
         end else begin
-            // Handle memory response
-            if (!cache_valid) begin
+            if (filling) begin
                 if (last_load_success) begin
-                    cache_data[fill_index] <= mem_byte;
+                    data[fill_way][fill_block_idx][fill_index] <= mem_byte;
                 end
-
                 if (mem_valid) begin
-                    last_load_success <= 1'b1;
-                    if (fill_index == `I_CACHE_SIZE * 2 + 2) begin
-                        cache_valid <= 1'b1;
-                    end else begin
-                        current_fill_pos <= current_fill_pos + 1;
-                        fill_index <= fill_index + 1;
+                    last_load_success <= 1;
+                    fill_index <= fill_index + 1;
+                    current_fill_addr <= current_fill_addr + 1;
+
+                    if (fill_index == BLOCK_SIZE) begin
+                        filling <= 0;
+                        valid[fill_way][fill_block_idx] <= 1;
                     end
                 end else begin
-                    last_load_success <= 1'b0;
+                    last_load_success <= 0;
                 end
             end
 
-            // Handle instruction fetch request
-            if (req_pc >= start_pos &&
-                        req_pc < start_pos + `I_CACHE_SIZE * 2) begin
-                valid_out <= (req_pc + 4 < current_fill_pos) ? 1'b1 : 1'b0;
-            end else begin
-                // Cache miss - start new fill
-                start_pos <= new_start_pos;
-                current_fill_pos <= new_start_pos;
+            valid_out <= cache_hit;
+            if (cache_hit) begin
+                compressed_out <= is_compressed;
+                // Update LRU
+                lru[req_index] <= ~way_sel;
+                // $fwrite(output_file, "%h -> %h\n", req_pc, instruction_raw);
+            end else if (!filling) begin
+                // Handle miss
+                filling <= 1;
                 fill_index <= -1;
-                cache_valid <= 1'b0;
-                valid_out <= 1'b0;
+                fill_block_idx <= req_index;
+                // Choose way based on LRU
+                fill_way <= next_fill_way;
+                current_fill_addr <= {req_tag, req_index, 4'b0};
+                // Update tag
+                tags[next_fill_way][req_index] <= req_tag;
+                valid[next_fill_way][req_index] <= 0;
+                last_load_success <= 0;
             end
         end
     end
 
-    assign mem_en = !cache_valid;
-    assign miss_addr = current_fill_pos;
+    assign mem_en = filling;
+    assign miss_addr = {18'b0, current_fill_addr};
+
+    // wire [31:0] debug = {
+    //     data[1'b1][req_index][req_offset + 2'b11],
+    //     data[1'b1][req_index][req_offset + 2'b10],
+    //     data[1'b1][req_index][req_offset + 1'b1],
+    //     data[1'b1][req_index][req_offset]
+    // };
 
 endmodule
 
