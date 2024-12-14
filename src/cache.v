@@ -23,7 +23,7 @@ module instruction_cache (
     localparam WAY_COUNT = 2;    // 2-way associative
     localparam NUM_BLOCKS = 8;  // Total blocks: 2 * 32 = 64
     localparam INDEX_BITS = 3;   // log2(NUM_BLOCKS) = 5
-    localparam TAG_BITS = 5;     // 14 - INDEX_BITS - log2(BLOCK_SIZE-2) = 8
+    localparam TAG_BITS = 7;     // 14 - INDEX_BITS - log2(BLOCK_SIZE-2) = 8
     localparam TOTAL_BITS = TAG_BITS + INDEX_BITS + BLOCK_BITS;
 
     // Cache storage
