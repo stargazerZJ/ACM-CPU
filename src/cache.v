@@ -114,11 +114,13 @@ module mem_controller (
     output wire [7:0] icache_data
 );
 
+wire lsb_allowed = lsb_en && mem_valid;
+
 // Memory address mux
-assign mem_a = lsb_en ? lsb_addr : icache_addr;
+assign mem_a = lsb_allowed ? lsb_addr : icache_addr;
 
 // Memory write control
-assign mem_wr = lsb_en ? lsb_wr : 1'b0;
+assign mem_wr = mem_valid ? lsb_wr : 1'b0;
 
 // Memory write data
 assign mem_dout = lsb_data;
@@ -127,7 +129,7 @@ assign mem_dout = lsb_data;
 assign lsb_read_data = mem_din;
 
 // LSB valid signal
-assign lsb_valid = mem_valid && lsb_en;
+assign lsb_valid = lsb_allowed;
 
 // ICache read data
 assign icache_data = mem_din;
